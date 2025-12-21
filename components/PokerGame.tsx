@@ -173,8 +173,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
             // --- History Init ---
             const history = [`--- NEW HAND (Dealer: ${updatedPlayers[newDealerRealIndex].name}) ---`];
-            history.push(`${sbPlayer.name} posts SB $${sbAmount}`);
-            history.push(`${bbPlayer.name} posts BB $${bbAmount}`);
+            // history.push(`${sbPlayer.name} posts SB $${sbAmount}`);
+            // history.push(`${bbPlayer.name} posts BB $${bbAmount}`);
 
             return {
                 ...prevState,

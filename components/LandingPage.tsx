@@ -33,7 +33,7 @@ const LEVELS: TournamentLevel[] = [
         sub: 'Eastern Hub',
         buyIn: 1000, 
         blindBig: 10, 
-        desc: 'Standard Middle-Class' 
+        desc: 'Middle-Class' 
     },
     { 
         id: 'glen', 
@@ -41,7 +41,7 @@ const LEVELS: TournamentLevel[] = [
         sub: 'School District',
         buyIn: 10000, 
         blindBig: 100, 
-        desc: 'Family & Stability Tier' 
+        desc: 'Family-Stability Tier' 
     },
     { 
         id: 'balwyn', 
@@ -57,7 +57,7 @@ const LEVELS: TournamentLevel[] = [
         sub: 'Elite South',
         buyIn: 500000, 
         blindBig: 5000, 
-        desc: 'Top of the Food Chain' 
+        desc: 'Top of the Chain' 
     }
 ];
 

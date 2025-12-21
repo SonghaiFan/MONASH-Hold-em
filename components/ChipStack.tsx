@@ -26,11 +26,11 @@ const DENOMINATIONS = [100000, 25000, 5000, 1000, 500, 100, 25, 5, 1];
 const calculateChipCounts = (total: number) => {
     let remaining = total;
     const counts: { value: number; count: number }[] = [];
-    const MAX_CHIPS_PER_BATCH = 60; // Increased slightly for variety
+    const MAX_CHIPS_PER_BATCH = 60; 
 
     let batchCount = 0;
     for (const value of DENOMINATIONS) {
-        if (remaining < 1) break; // Stop if less than smallest denomination
+        if (remaining < 1) break; 
         if (batchCount >= MAX_CHIPS_PER_BATCH) break;
 
         const count = Math.floor(remaining / value);
@@ -59,12 +59,9 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
         if (!sceneRef.current || !canvasRef.current) return;
 
         const Engine = Matter.Engine,
-              Render = Matter.Render,
               World = Matter.World,
               Bodies = Matter.Bodies,
               Runner = Matter.Runner,
-              MouseConstraint = Matter.MouseConstraint,
-              Mouse = Matter.Mouse,
               Composite = Matter.Composite;
 
         const engine = Engine.create();
@@ -84,13 +81,43 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
 
         World.add(world, [ground, leftWall, rightWall]);
 
-        // Mouse
-        const mouse = Mouse.create(canvasRef.current);
-        const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: { stiffness: 0.2, render: { visible: false } }
-        });
-        World.add(world, mouseConstraint);
+        // CLICK TO BUMP INTERACTION
+        const handleCanvasInteract = (e: MouseEvent | TouchEvent) => {
+            if (!engineRef.current || !canvasRef.current) return;
+            
+            const rect = canvasRef.current.getBoundingClientRect();
+            
+            let clientX, clientY;
+            if (e instanceof MouseEvent) {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            } else {
+                // Prevent scrolling if touching chips (optional, but good for game feel)
+                // e.preventDefault(); 
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            // Map coordinates
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const bodies = Composite.allBodies(engine.world);
+            const clickedBodies = Matter.Query.point(bodies, { x, y });
+
+            clickedBodies.forEach(body => {
+                if (body.isStatic) return;
+                // Apply upward force ("Bump")
+                const forceMag = 0.05 * body.mass;
+                Matter.Body.applyForce(body, body.position, {
+                    x: (Math.random() - 0.5) * forceMag * 0.5,
+                    y: -forceMag
+                });
+            });
+        };
+
+        canvasRef.current.addEventListener('mousedown', handleCanvasInteract);
+        canvasRef.current.addEventListener('touchstart', handleCanvasInteract);
 
         // Render Loop
         const ctx = canvasRef.current.getContext('2d');
@@ -108,12 +135,9 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
             
             // Handle Resize
             if (canvasRef.current.width !== displayWidth || canvasRef.current.height !== displayHeight) {
-                // Resize backing store
                 canvasRef.current.width = displayWidth;
                 canvasRef.current.height = displayHeight;
                 
-                // --- UPDATE BOUNDARIES ---
-                // Only scale if width actually changed to avoid divide by zero or useless calcs
                 if (dimensionsRef.current.width !== currentWidth && dimensionsRef.current.width > 0) {
                      const scaleX = currentWidth / dimensionsRef.current.width;
                      Matter.Body.scale(ground, scaleX, 1);
@@ -126,14 +150,11 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
                 dimensionsRef.current = { width: currentWidth, height: currentHeight };
             }
 
-            // Clear buffer (using physical coordinates)
             ctx.clearRect(0, 0, displayWidth, displayHeight);
             
             ctx.save();
-            // Scale context so drawing operations use LOGICAL coordinates but render at HIGH DPI
             ctx.scale(dpr, dpr);
             
-            // Render bodies
             const bodies = Composite.allBodies(engine.world);
             ctx.shadowBlur = 6;
             ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -150,13 +171,11 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
                 ctx.translate(x, y);
                 ctx.rotate(body.angle);
                 
-                // Chip Face
                 ctx.beginPath();
                 ctx.arc(0, 0, radius, 0, 2 * Math.PI);
                 ctx.fillStyle = color;
                 ctx.fill();
 
-                // Stripes
                 ctx.beginPath();
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 4;
@@ -167,7 +186,6 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
                 }
                 ctx.stroke();
 
-                // Dashed Ring
                 ctx.beginPath();
                 ctx.strokeStyle = 'rgba(0,0,0,0.3)';
                 ctx.lineWidth = 1;
@@ -176,15 +194,12 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Inner White
                 ctx.beginPath();
                 ctx.fillStyle = '#fff';
                 ctx.arc(0, 0, radius * 0.55, 0, 2 * Math.PI);
                 ctx.fill();
 
-                // Text
                 ctx.fillStyle = '#000';
-                // Using Space Mono here for consistency with the rest of the UI numeric displays
                 ctx.font = 'bold 8px "Space Mono", monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -206,6 +221,10 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
         renderLoop();
 
         return () => {
+            if (canvasRef.current) {
+                canvasRef.current.removeEventListener('mousedown', handleCanvasInteract);
+                canvasRef.current.removeEventListener('touchstart', handleCanvasInteract);
+            }
             cancelAnimationFrame(animationFrameId);
             Runner.stop(runner);
             World.clear(world, false);
@@ -222,7 +241,6 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
         const prevAmount = prevAmountRef.current;
         const delta = amount - prevAmount;
 
-        // Helper to spawn specific chips
         const spawnChips = (valueToSpawn: number) => {
             const breakdown = calculateChipCounts(valueToSpawn);
             const newBodies: Matter.Body[] = [];
@@ -245,14 +263,11 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
         };
 
         if (delta > 0) {
-            // --- ADDING CHIPS ---
             spawnChips(delta);
         } else if (delta < 0) {
-            // --- REMOVING CHIPS ---
             const target = Math.abs(delta);
             const currentBodies = [...chipsRef.current];
 
-            // Strategy 1: Exact Match (Greedy Descending)
             const bodiesDesc = [...currentBodies].sort((a, b) => {
                 // @ts-ignore
                 return b.chipValue - a.chipValue;
@@ -272,29 +287,24 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
             }
 
             if (currentSum === target) {
-                // EXECUTE STRATEGY 1
                 Matter.World.remove(world, exactMatchToRemove);
                 chipsRef.current = currentBodies.filter(b => !exactMatchToRemove.includes(b));
             } else {
-                // Strategy 2: Break Smallest Excess
                 const bodiesAsc = [...currentBodies].sort((a, b) => {
                     // @ts-ignore
                     return a.chipValue - b.chipValue;
                 });
 
-                // 2a. Look for single chip > target
                 // @ts-ignore
                 const singleBreaker = bodiesAsc.find(b => b.chipValue >= target);
 
                 if (singleBreaker) {
-                    // Remove single chip, return change
                     Matter.World.remove(world, [singleBreaker]);
                     chipsRef.current = currentBodies.filter(b => b !== singleBreaker);
                     // @ts-ignore
                     const change = singleBreaker.chipValue - target;
                     if (change > 0) spawnChips(change);
                 } else {
-                    // 2b. Must combine multiple chips to cover target
                     const multiBreakerToRemove: Matter.Body[] = [];
                     let breakSum = 0;
                     for (const body of bodiesAsc) {

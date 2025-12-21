@@ -38,10 +38,35 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
     const [isRaising, setIsRaising] = useState(false);
     const [raiseAmount, setRaiseAmount] = useState(0);
 
+    // --- Standard Poker Raise Logic ---
+    
+    // 1. Current "Level" to match (The high bet on the table)
     const currentHighBet = player.currentBet + toCall;
+
+    // 2. Minimum Raise:
+    // In No-Limit, min raise is usually (HighBet + PreviousRaiseDelta).
+    // Without full history, a safe standard floor is (HighBet + BigBlind).
     const minRaiseTotal = currentHighBet > 0 ? currentHighBet + bigBlind : bigBlind;
+
+    // 3. Max Raise (All-In)
     const maxRaiseTotal = player.chips + player.currentBet;
+    
+    // Clamp Min
     const safeMin = Math.min(minRaiseTotal, maxRaiseTotal);
+
+    // 4. Pot Size Calculation (Standard Texas Hold'em)
+    // Formula: Total Bet = 2 * HighBet + Pot - PlayerCurrentBet
+    // Derivation: Call (High - Current) + [Pot + (High - Current)] = 2*High + Pot - Current
+    const potRaiseTotal = (2 * currentHighBet) + potSize - player.currentBet;
+    
+    // 5. Half Pot Calculation
+    // Formula: HighBet + 0.5 * (Pot + CallAmount)
+    // This adds half the theoretical pot on top of the call
+    const theoreticalPot = potSize + (currentHighBet - player.currentBet);
+    const halfPotTotal = currentHighBet + Math.floor(theoreticalPot * 0.5);
+
+    // Clamp Pot Marker
+    const safePotMarker = Math.max(safeMin, Math.min(maxRaiseTotal, potRaiseTotal));
 
     useEffect(() => {
         if (!canAct) setIsRaising(false);
@@ -60,17 +85,16 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
 
     const handleQuickBet = (type: 'min' | '1/2' | 'pot' | 'all') => {
         let amount = 0;
-        const currentPotPlusCall = potSize + toCall;
-
+        
         switch (type) {
             case 'min': amount = safeMin; break;
-            case '1/2': amount = currentHighBet + Math.floor(currentPotPlusCall * 0.5); break;
-            case 'pot': amount = currentHighBet + currentPotPlusCall; break;
+            case '1/2': amount = halfPotTotal; break;
+            case 'pot': amount = potRaiseTotal; break;
             case 'all': amount = maxRaiseTotal; break;
         }
         
         if (type !== 'all') {
-             // Snap to BB
+             // Snap to BB (Standard online poker UX to avoid messy numbers)
              amount = Math.round(amount / bigBlind) * bigBlind;
         }
 
@@ -142,8 +166,9 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
                                 step={bigBlind}
                                 value={raiseAmount}
                                 onChange={setRaiseAmount}
+                                markerValue={safePotMarker}
                             />
-                            <div className="flex justify-between text-[0.6rem] md:text-[0.65rem] font-mono text-[#777] mt-1 md:mt-3">
+                            <div className="flex justify-between text-[0.6rem] md:text-[0.65rem] font-mono text-[#777] mt-3">
                                 <span>Min: ${safeMin.toLocaleString()}</span>
                                 <span>Max: ${maxRaiseTotal.toLocaleString()}</span>
                             </div>
@@ -224,7 +249,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
     return (
         <section className={`
             relative w-full h-[32vh] shrink-0 bg-black/20 backdrop-blur-2xl border-t border-white/5
-            transition-all duration-500 z-20 overflow-hidden
+            transition-all duration-500 z-20
             ${canAct && gameStatus === 'active' ? 'shadow-[0_-5px_30px_rgba(255,255,255,0.05)] bg-black/30' : ''}
         `}>
             
@@ -274,7 +299,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
 
             {/* Cards: Positioned cleanly in the remaining space */}
             <div className={`
-                absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 
+                absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 
                 flex gap-2 pointer-events-none
                 transition-all duration-300
                 ${(!player.isActive && gameStatus === 'active') ? 'opacity-30 grayscale scale-95 z-0' : 
@@ -300,7 +325,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
             {/* Controls Area (Bottom) */}
             {showControls && (
                 <div 
-                    className="absolute bottom-0 left-0 w-full z-40 px-5 pb-4 md:pb-6 pt-6 bg-gradient-to-t from-black/80 via-black/50 to-transparent"
+                    className="absolute bottom-0 left-0 w-full z-40 px-5 pb-4 md:pb-6 pt-6 bg-gradient-to-t from-black/40 to-transparent"
                     style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
                 >
                     {renderControls()}

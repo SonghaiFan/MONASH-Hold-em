@@ -31,14 +31,14 @@ export const TableStratum: React.FC<TableStratumProps> = ({ pot, board, phase, w
                     className={`
                         relative transition-all duration-500 ease-out hover:!z-50 hover:-translate-y-6
                         /* Mobile: Negative margin for overlap */
-                        ${index === 0 ? 'ml-0' : '-ml-[3em] md:ml-3'}
+                        ${index === 0 ? 'ml-0' : '-ml-[1em] md:ml-3'}
                     `}
                     style={{ 
                         zIndex: zIndex,
                     }}
                 >
                     {/* Size Context: Mobile 9px, Desktop 13px */}
-                    <div className="relative w-[10em] h-[14em] text-[9px] md:text-[13px]">
+                    <div className="relative w-[10em] h-[14em] text-[8px] md:text-[13px]">
                         
                         {/* Placeholder Slot (Empty) */}
                         <div className="absolute inset-0 rounded-[1em] border-white/10 bg-white/5 z-0 shadow-inner" />

@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Card, GamePhase, Player } from "../types";
 
-// Initialize Gemini
-// Note: API_KEY must be provided in the environment variables
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface AIDecision {
@@ -11,8 +9,28 @@ interface AIDecision {
     reasoning?: string;
 }
 
-const formatCards = (cards: Card[]) => {
-    return cards.map(c => `${c.rank}${c.suit}`).join(', ');
+const formatCards = (cards: Card[]) => cards.map(c => `${c.rank}${c.suit}`).join('');
+
+// Helper: Calculate standard Pot Odds
+const calculatePotOdds = (toCall: number, currentPot: number): string => {
+    if (toCall <= 0) return "0% (Free Check)";
+    const finalPot = currentPot + toCall;
+    const percentage = (toCall / finalPot) * 100;
+    return `${percentage.toFixed(1)}%`;
+};
+
+// Helper: Sort players by action order for the current street
+const getSortedPlayersByActionOrder = (players: Player[], dealerIndex: number, phase: GamePhase) => {
+    const total = players.length;
+    // Pre-flop starts after BB (Dealer + 3), Post-flop starts after Dealer (Dealer + 1)
+    const offset = phase === GamePhase.PRE_FLOP ? 3 : 1;
+    const startIndex = (dealerIndex + offset) % total;
+    
+    const sorted: Player[] = [];
+    for (let i = 0; i < total; i++) {
+        sorted.push(players[(startIndex + i) % total]);
+    }
+    return sorted;
 };
 
 export const getAIDecision = async (
@@ -27,111 +45,180 @@ export const getAIDecision = async (
 ): Promise<AIDecision> => {
     
     const toCall = currentHighBet - activePlayer.currentBet;
-    const BIG_BLIND = bigBlind;
-
-    // Filter visible board cards based on phase
-    let visibleBoard: Card[] = [];
-    if (phase === GamePhase.FLOP) {
-        visibleBoard = board.slice(0, 3);
-    } else if (phase === GamePhase.TURN) {
-        visibleBoard = board.slice(0, 4);
-    } else if (phase === GamePhase.RIVER || phase === GamePhase.SHOWDOWN) {
-        visibleBoard = board.slice(0, 5);
-    }
-    // PRE_FLOP: visibleBoard remains empty
-
-    // Calculate players acting behind (simplified estimation)
-    const activePlayerIndex = allPlayers.findIndex(p => p.id === activePlayer.id);
-    // Create a rotated array starting after the active player
-    const rotatedPlayers = [
-        ...allPlayers.slice(activePlayerIndex + 1),
-        ...allPlayers.slice(0, activePlayerIndex)
-    ];
+    const potOdds = calculatePotOdds(toCall, pot);
+    const stackInBB = (activePlayer.chips / bigBlind).toFixed(1);
     
-    const playersLeftToAct = rotatedPlayers.filter(p => 
-        p.status !== 'FOLDED' && 
-        p.status !== 'ELIMINATED' && 
-        p.status !== 'ALL-IN'
-    ).map(p => p.name).join(', ');
+    // Filter visible board
+    let visibleBoard: Card[] = [];
+    if (phase === GamePhase.FLOP) visibleBoard = board.slice(0, 3);
+    else if (phase === GamePhase.TURN) visibleBoard = board.slice(0, 4);
+    else if (phase === GamePhase.RIVER || phase === GamePhase.SHOWDOWN) visibleBoard = board.slice(0, 5);
 
-    const playersInfo = allPlayers.map(p => {
+    // --- 1. Construct Sequential Action List ---
+    const dealerIndex = allPlayers.findIndex(p => p.isDealer);
+    const rawActionOrder = getSortedPlayersByActionOrder(allPlayers, dealerIndex !== -1 ? dealerIndex : 0, phase);
+    
+    // Filter out folded players for the snapshot (Current Table State)
+    // We only care about active participants for the current state view.
+    const actionOrderPlayers = rawActionOrder.filter(p => p.status !== 'FOLDED');
+    
+    // Identify indices for positional tags (Circular to handle round-table context)
+    const heroIndex = actionOrderPlayers.findIndex(p => p.id === activePlayer.id);
+    const totalPlayers = actionOrderPlayers.length;
+    
+    let prevIndex = -1;
+    let nextIndex = -1;
+    
+    if (totalPlayers > 1) {
+        prevIndex = (heroIndex - 1 + totalPlayers) % totalPlayers;
+        nextIndex = (heroIndex + 1) % totalPlayers;
+    }
+
+    // Build the narrative line for each player
+    const actionSequence = actionOrderPlayers.map((p, index) => {
         const isHero = p.id === activePlayer.id;
-        return `
-        - Name: ${p.name} ${isHero ? '(YOU - ACTIVE)' : ''}
-          Position: ${p.position} ${p.isDealer ? '[BTN]' : ''}
-          Stack: $${p.chips}
-          Current Bet in Round: $${p.currentBet}
-          Status: ${p.status}
-        `;
+        const role = p.isDealer ? 'BTN' : p.position;
+        
+        let actionDesc: string = p.status;
+        
+        // Detailed Action Descriptions based on Status and Context
+        if (p.status === 'ELIMINATED') {
+            actionDesc = "Eliminated";
+        } else if (p.status === 'ALL-IN') {
+             actionDesc = `All-In ($${p.currentBet})`;
+        } else if (p.status === 'WAITING' || p.status === 'THINKING' || p.status === 'ACTING') {
+            if (p.currentBet > 0) {
+                actionDesc = `Posted Blind/Bet ($${p.currentBet}) - Yet to Act`;
+            } else {
+                actionDesc = "Yet to Act";
+            }
+        } else if (p.status === 'CHECKED') {
+            actionDesc = "Checked";
+        } else if (p.status === 'CALLED') {
+            actionDesc = `Called ($${p.currentBet})`;
+        } else if (p.status === 'RAISED') {
+             actionDesc = `RAISED to $${p.currentBet}`;
+        }
+        
+        let marker = "";
+        if (isHero) {
+            marker = " <---  YOU (DECISION)";
+        } else if (index === prevIndex) {
+            marker = " <--- PREVIOUS";
+        } else if (index === nextIndex) {
+            marker = " <--- NEXT";
+        }
+
+        return `${role} (${p.name}): [${actionDesc}] | Stack: ${p.chips}${marker}`;
     }).join('\n');
 
-    const historyLog = handHistory.join('\n');
-
-    // Contextual Note for Pre-Flop Blinds
-    let preFlopNote = "";
-    if (phase === GamePhase.PRE_FLOP) {
-        preFlopNote = `
-        IMPORTANT PRE-FLOP CONTEXT: 
-        - The Small Blind (SB) and Big Blind (BB) have posted forced bets.
-        - Unless the Action Log explicitly says "SB calls" or "BB checks", they have NOT acted yet.
-        - They still have the option to Raise or Check/Call when action gets to them.
-        `;
-    }
-
     const systemInstruction = `
-        You are a GTO (Game Theory Optimal) poker expert named ${activePlayer.name}.
-        
-        Strategic Objectives:
-        1. **Range Construction**: Analyze the 'Action Log' to assign ranges to opponents.
-           - UTG Raise = Strong Range (TT+, AJs+, KQs).
-           - Button Raise = Wide Range.
-        
-        2. **Pot Odds & Equity**: Calculate if calling is profitable based on the odds.
-        
-        3. **Position**: Play tighter out of position (SB/BB/UTG) and more aggressive in position (BTN/CO).
-           - BEWARE: There are active players behind you: [${playersLeftToAct}].
-        
-        4. **Bluffing**: 
-           - Identify spots where you have "Range Advantage".
-           - Do not bluff calling stations.
+You are a **GTO poker decision engine** named ${activePlayer.name}.
+Your task is to output the **single highest-EV action** using game-theory-optimal logic.
+You do NOT balance emotions, table talk, or storytelling—only EV.
 
-        Action Rules:
-        1. Return ONLY a JSON object.
-        2. Action must be "fold", "call", or "raise".
-        3. **CHECKING**: If the "Amount you need to Call" is $0, returning "call" means CHECK. Do NOT return an amount for a check.
-        4. **RAISING**:
-           - "amount" must be the TOTAL bet for the round (Your current bet + chips added).
-           - Minimum raise total is usually $${currentHighBet + BIG_BLIND} (unless all-in).
-           - Raises must be multiples of ${BIG_BLIND}.
+--------------------------------
+CORE ANALYSIS FRAMEWORK
+--------------------------------
+
+0. RANGE ASSIGNMENT (MANDATORY)
+Infer opponent ranges strictly from:
+- Position
+- Preflop actions (raise / call / 3-bet)
+- Stack depth
+- Tendencies if explicitly provided
+
+Baseline preflop assumptions (100bb, no reads):
+- UTG Open: TT+, AQs+, AKo, occasional AJs/KQs
+- MP Open: 88+, ATs+, AJo+, KQs
+- CO Open: 66+, A8s+, ATo+, KTs+, QJs, JTs
+- BTN Open: 40-55% of hands
+- SB Open: 30-40%, more linear
+- Limped pots: wide and capped ranges
+
+1. POT ODDS & EQUITY (NON-NEGOTIABLE)
+- You are being offered pot odds of ${potOdds}.
+- Call ONLY if estimated hand equity ≥ pot odds.
+- If equity is clearly below pot odds → FOLD.
+- Marginal equity hands lose value when out of position.
+
+2. POSITIONAL DISCIPLINE
+- Your position: "${activePlayer.position}"
+- In Position (IP):
+  - Widen calling and floating ranges.
+  - Apply pressure when opponent shows weakness.
+- Out of Position (OOP):
+  - Tighten ranges.
+  - Prefer fold or raise over passive calls.
+
+3. AGGRESSION PRINCIPLE
+- If you have:
+  - A strong made hand, OR
+  - A high-equity draw (8+ outs, combo draws),
+  → Prefer RAISE over CALL.
+- Calling with strong hands is discouraged unless trapping is clearly optimal.
+
+4. BLUFFING CONSTRAINTS
+- Bluff ONLY when:
+  - You have range advantage, AND
+  - Opponent has shown weakness (check, capped line).
+- If checked to on Flop or Turn with air + range advantage:
+  - Bet SMALL (range bet).
+- Do NOT bluff:
+  - Calling stations
+  - Multi-way pots
+  - Against strength (raise + barrel lines)
+
+5. BLIND LOGIC
+- Big Blind:
+  - Defend wide vs single raises when pot odds justify it.
+  - If “Option Pending”, you have not yet acted—treat as unopened action.
+
+6. CONTEXT & LINE CONSISTENCY
+- Use the FULL HAND HISTORY.
+- Preflop raiser betting again represents strength.
+- Multiple aggressive actions narrow ranges.
+- Passive lines cap ranges.
+
+--------------------------------
+OUTPUT FORMAT (STRICT)
+--------------------------------
+Return ONLY a JSON object:
+
+{
+  "action": "fold" | "call" | "raise",
+  "amount"?: number,
+  "reasoning": "one concise tactical sentence"
+}
+
+--------------------------------
+RAISE RULES (MANDATORY)
+--------------------------------
+- Minimum total raise: $${currentHighBet + bigBlind}
+- If raising, "amount" must be the NEW TOTAL bet.
+- Raise sizes must be clean, intentional, and non-random.
+- Do NOT include "amount" when checking (call with $0).
     `;
 
     const prompt = `
-        === GAME STATE ===
-        Phase: ${phase}
-        Current Pot: $${pot}
-        High Bet to Match: $${currentHighBet}
-        Amount you need to Call: $${toCall} ${toCall === 0 ? '(This is a CHECK situation)' : ''}
-        
-        === YOUR INFO ===
-        Your Hand: ${formatCards(activePlayer.hand)}
-        Your Stack: $${activePlayer.chips}
-        Your Position: ${activePlayer.position}
+=== SITUATION ===
+Phase: ${phase}
+Pot: $${pot}
+To Call: $${toCall}
+Your Stack: $${activePlayer.chips} (${stackInBB} BBs)
 
-        === COMMUNITY CARDS ===
-        ${visibleBoard.length > 0 ? formatCards(visibleBoard) : 'None'}
+=== HAND ===
+Cards: ${formatCards(activePlayer.hand)}
+Board: ${visibleBoard.length ? formatCards(visibleBoard) : 'Clean'}
 
-        === PLAYERS TABLE ===
-        ${playersInfo}
+=== FULL HAND HISTORY (Log of all actions) ===
+${handHistory.length > 0 ? handHistory.join('\n') : "No actions yet."}
 
-        === PLAYERS LEFT TO ACT BEHIND YOU ===
-        ${playersLeftToAct || 'None (You are closing action)'}
+=== CURRENT TABLE STATE (Snapshot of Stacks & Active Bets - Folded players excluded) ===
+${actionSequence}
 
-        ${preFlopNote}
-
-        === ACTION LOG (HISTORY) ===
-        ${historyLog}
-
-        Based on the history and GTO principles, make your decision.
+=== DECISION ===
+Based on the FULL history (previous streets) and current table state, make a GTO decision.
     `;
 
     // --- DEBUG LOGGING ---
@@ -139,7 +226,7 @@ export const getAIDecision = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest', // Fast and cheap model
+            model: 'gemini-flash-lite-latest', 
             contents: prompt,
             config: {
                 systemInstruction: systemInstruction,
@@ -161,39 +248,26 @@ export const getAIDecision = async (
 
         const decision = JSON.parse(text) as AIDecision;
         
-        // --- Validation & Safeguards ---
-
-        // 1. Validate Raise Amount
+        // --- Safeguards ---
         if (decision.action === 'raise') {
              let validAmount = decision.amount || (currentHighBet * 2);
-             
-             // Ensure it's at least a min-raise (unless all-in)
-             if (validAmount <= currentHighBet) {
-                 validAmount = currentHighBet + BIG_BLIND; // min raise add
-             }
+             if (validAmount <= currentHighBet) validAmount = currentHighBet + bigBlind;
              
              // Snap to Blind
-             validAmount = Math.round(validAmount / BIG_BLIND) * BIG_BLIND;
+             validAmount = Math.round(validAmount / bigBlind) * bigBlind;
 
-             // Cap at All-In (Player's total money = chips + currentBet)
              const maxTotal = activePlayer.chips + activePlayer.currentBet;
-             if (validAmount > maxTotal) {
-                 validAmount = maxTotal;
-             }
+             if (validAmount > maxTotal) validAmount = maxTotal;
              
              decision.amount = validAmount;
         }
 
-        // 2. Validate Call/Check
-        if (decision.action === 'call') {
-            // Ensure no amount is passed for a call/check to prevent confusion in game logic
-            delete decision.amount; 
-        }
+        if (decision.action === 'call') delete decision.amount; 
 
         return decision;
 
     } catch (error) {
         console.error("AI Error:", error);
-        return { action: 'fold', reasoning: "Error in AI service, defaulting to fold." };
+        return { action: 'fold', reasoning: "Error in AI service." };
     }
 };

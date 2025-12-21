@@ -72,7 +72,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                 <div className="text-[0.6rem] text-white/20 font-mono tracking-widest uppercase animate-in fade-in duration-1000 delay-500 flex gap-4">
                     <span>Sys v2.4.0</span>
                     <span>•</span>
-                    <span>Secure Connection</span>
+                    <span>Made by @范不着Frank</span>
                 </div>
             </div>
         </div>

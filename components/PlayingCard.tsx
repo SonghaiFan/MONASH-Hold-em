@@ -171,23 +171,13 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
                             {/* Top Left */}
                             <div className="flex flex-col items-center self-start relative z-10 w-[2em]">
                                 <span 
-                                    className="font-['Inter'] font-bold text-[2.6em] leading-none tracking-tight"
+                                    className="font-['Inter'] font-bold text-[3.5em] leading-none tracking-tight"
                                     style={{ color: mainColor }}
                                 >
                                     {card?.rank}
                                 </span>
                                 <span 
-                                    className="text-[2em] leading-none mt-[0.1em]"
-                                    style={{ color: mainColor }}
-                                >
-                                    {card?.suit}
-                                </span>
-                            </div>
-
-                            {/* Center Suit (Watermark style) */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-0">
-                                <span 
-                                    className="text-[6em] drop-shadow-sm opacity-[0.08]"
+                                    className="text-[3em] leading-none mt-[0.1em]"
                                     style={{ color: mainColor }}
                                 >
                                     {card?.suit}
@@ -208,7 +198,6 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
                             }}
                         >
                              <div className="absolute inset-[0.4em] border border-white/[0.03] rounded-[0.6em] pointer-events-none" />
-                             <div className="w-[3em] h-[3em] opacity-10 rounded-full border border-white"></div>
                         </div>
                     </div>
                 </div>
