@@ -196,9 +196,15 @@ TAG STRATEGY FRAMEWORK
 - Fold marginal hands against heavy aggression.
 
 1. PREFLOP DISCIPLINE (TIGHT)
-- **Open Tight**: Open top 15% from EP, 25-30% from LP.
-- **3-Bet Value**: 3-bet strictly for value with premiums (QQ+, AK) and occasionally AQs/JJ.
-- **Fold Weakness**: Fold easily to 3-bets with marginal hands.
+- **Open Tight**:
+Baseline preflop assumptions (100bb, no reads):
+- UTG Open: TT+, AQs+, AKo, occasional AJs/KQs
+- MP Open: 88+, ATs+, AJo+, KQs
+- CO Open: 66+, A8s+, ATo+, KTs+, QJs, JTs
+- BTN Open: 40-55% of hands
+- SB Open: 30-40%, more linear
+- Limped pots: wide and capped ranges
+Never assign a range narrower than is positionally justified.
 
 2. POSTFLOP AGGRESSION (AGGRESSIVE)
 - **Bet or Fold**: Avoid checking. If you have a hand, bet it. If you don't, fold.

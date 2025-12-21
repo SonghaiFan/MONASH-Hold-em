@@ -105,7 +105,7 @@ const getPlayStyleForLevel = (blindBig: number): PlayStyle => {
   if (blindBig <= 1000) {
     if (rand < 0.1) return "LP";
     if (rand < 0.2) return "TP";
-    if (rand < 0.5) return "LAG";
+    if (rand < 0.3) return "LAG";
     return "TAG";
   }
 
@@ -113,7 +113,7 @@ const getPlayStyleForLevel = (blindBig: number): PlayStyle => {
   // Mostly TAG (Solid) and LAG (Tricky)
   if (rand < 0.05) return "LP"; // The occasional whale
   if (rand < 0.1) return "TP";
-  if (rand < 0.4) return "LAG";
+  if (rand < 0.2) return "LAG";
   return "TAG";
 };
 
