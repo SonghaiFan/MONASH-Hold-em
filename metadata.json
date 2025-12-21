@@ -1,0 +1,5 @@
+{
+  "name": "MONASH Hold'em",
+  "description": "A high-fidelity, poker interface featuring a modern aesthetic, reactive game states, and AI opponents.",
+  "requestFramePermissions": []
+}
