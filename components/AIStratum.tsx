@@ -75,7 +75,7 @@ export const AIStratum: React.FC<AIStratumProps> = ({ players, activePlayerId, p
     };
 
     return (
-        <section className="relative w-full border-b border-white/5 rounded-b-3xl bg-black/10 backdrop-blur-lg h-[25vh] shrink-0 z-20 shadow-sm transition-all duration-500 overflow-hidden mx-auto max-w-[1920px]">
+        <section className="relative w-full border-b border-white/5 rounded-b-3xl bg-black/10 backdrop-blur-lg h-[24svh] shrink-0 z-20 shadow-sm transition-all duration-500 overflow-hidden mx-auto max-w-[1920px]">
             <div className="w-full h-full overflow-x-auto no-scrollbar flex">
                 {/* Enforcing mobile spacing and padding everywhere */}
                 <div className="flex h-full items-center gap-2 px-6 py-3 m-auto min-w-max">

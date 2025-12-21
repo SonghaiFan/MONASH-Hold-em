@@ -38,7 +38,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({ pot, board, phase, w
                     }}
                 >
                     {/* Size Context: Mobile 9px, Desktop 13px */}
-                    <div className="relative w-[10em] h-[14em] text-[8px] md:text-[13px]">
+                    <div className="relative w-[10em] h-[14em] text-[7px] md:text-[13px]">
                         
                         {/* Placeholder Slot (Empty) */}
                         <div className="absolute inset-0 rounded-[1em] border-white/10 bg-white/5 z-0 shadow-inner" />
@@ -63,7 +63,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({ pot, board, phase, w
     };
 
     return (
-        <section className="relative w-full h-[43vh] flex flex-col items-center justify-center bg-transparent z-10 py-2 md:py-6 shrink-0">
+        <section className="relative w-full h-[42svh] flex flex-col items-center justify-center bg-transparent z-10 py-2 md:py-6 shrink-0">
             
             {/* Background Pot Chips */}
             <div className="absolute inset-0 z-0 overflow-hidden opacity-60 pointer-events-none">

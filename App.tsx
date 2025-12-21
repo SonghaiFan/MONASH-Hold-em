@@ -51,7 +51,7 @@ function App() {
     };
 
     return (
-        <main className="w-full h-[100dvh] flex flex-col bg-[radial-gradient(circle_at_center,#35654d_0%,#13251d_100%)] text-[#e0e0e0] font-sans overflow-hidden relative selection:bg-[#d4af37] selection:text-black">
+        <main className="w-full h-[100svh] flex flex-col bg-[radial-gradient(circle_at_center,#35654d_0%,#13251d_100%)] text-[#e0e0e0] font-sans overflow-hidden relative selection:bg-[#d4af37] selection:text-black">
             <TextureOverlay />
             
             {/* View Container */}

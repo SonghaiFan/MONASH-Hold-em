@@ -248,7 +248,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
 
     return (
         <section className={`
-            relative w-full h-[32vh] shrink-0 bg-black/20 backdrop-blur-2xl border-t border-white/5
+            relative w-full h-[34svh] shrink-0 bg-black/20 backdrop-blur-2xl border-t border-white/5
             transition-all duration-500 z-20
             ${canAct && gameStatus === 'active' ? 'shadow-[0_-5px_30px_rgba(255,255,255,0.05)] bg-black/30' : ''}
         `}>

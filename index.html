@@ -112,6 +112,17 @@
         .animate-zoom-fade-in {
             animation: zoomFadeIn 1.5s var(--ease-out-expo) backwards;
         }
+
+        /* 3D Floating Background Animations */
+        @keyframes float-3d-slow {
+            0%, 100% { transform: translateY(0) rotateZ(-10deg) rotateY(10deg); }
+            50% { transform: translateY(-30px) rotateZ(-5deg) rotateY(25deg); }
+        }
+        
+        @keyframes float-3d-reverse {
+            0%, 100% { transform: translateY(0) rotateZ(10deg) rotateY(-10deg); }
+            50% { transform: translateY(30px) rotateZ(5deg) rotateY(-25deg); }
+        }
     </style>
 <script type="importmap">
 {
