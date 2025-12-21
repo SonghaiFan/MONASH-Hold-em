@@ -587,7 +587,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     activePlayer.reasoningHistory
                 );
 
-                console.group(`🤖 AI Decision: ${activePlayer.name}`);
+                console.group(`🤖 AI Decision: ${activePlayer.name} [${activePlayer.playStyle || 'LAG'}]`);
                 if (decision.reasoning) {
                     console.log(`%cReasoning: ${decision.reasoning}`, 'color: #d4af37; font-weight: bold;');
                 }
