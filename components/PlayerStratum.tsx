@@ -250,12 +250,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
 
               <ActionButton onClick={() => onAction("call")} variant="green">
                 {toCall > 0 ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span>CALL</span>
-                    <span className="font-mono text-base md:text-lg">
-                      ${formatChips(toCall)}
-                    </span>
-                  </span>
+                  "CALL"
                 ) : (
                   "CHECK"
                 )}

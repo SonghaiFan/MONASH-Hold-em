@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Card, GamePhase, Player } from "../types";
+import { formatChips } from "../utils";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -100,23 +101,25 @@ export const getAIDecision = async (
       if (p.status === "ELIMINATED") {
         actionDesc = "Eliminated";
       } else if (p.status === "ALL-IN") {
-        actionDesc = `All-In ($${p.currentBet})`;
+        actionDesc = `All-In ($${formatChips(p.currentBet)})`;
       } else if (
         p.status === "WAITING" ||
         p.status === "THINKING" ||
         p.status === "ACTING"
       ) {
         if (p.currentBet > 0) {
-          actionDesc = `Posted Blind/Bet ($${p.currentBet}) - Yet to Act`;
+          actionDesc = `Posted Blind/Bet ($${formatChips(
+            p.currentBet
+          )}) - Yet to Act`;
         } else {
           actionDesc = "Yet to Act";
         }
       } else if (p.status === "CHECKED") {
         actionDesc = "Checked";
       } else if (p.status === "CALLED") {
-        actionDesc = `Called ($${p.currentBet})`;
+        actionDesc = `Called ($${formatChips(p.currentBet)})`;
       } else if (p.status === "RAISED") {
-        actionDesc = `RAISED to $${p.currentBet}`;
+        actionDesc = `RAISED to $${formatChips(p.currentBet)}`;
       }
 
       let marker = "";
@@ -128,7 +131,9 @@ export const getAIDecision = async (
         marker = " <--- NEXT";
       }
 
-      return `${role} (${p.name}): [${actionDesc}] | Stack: ${p.chips}${marker}`;
+      return `${role} (${p.name}): [${actionDesc}] | Stack: ${formatChips(
+        p.chips
+      )}${marker}`;
     })
     .join("\n");
 
@@ -315,16 +320,16 @@ Return ONLY a JSON object:
 --------------------------------
 RAISE RULES (MANDATORY)
 --------------------------------
-- Minimum total raise: $${currentHighBet + bigBlind}
+- Minimum total raise: $${formatChips(currentHighBet + bigBlind)}
     `;
 
   const prompt = `
 === SITUATION ===
 Phase: ${phase}
-Pot: $${pot}
-To Call: $${toCall}
+Pot: $${formatChips(pot)}
+To Call: $${formatChips(toCall)}
 Pot Odds: ${potOdds}
-Your Stack: $${activePlayer.chips} (${stackInBB} BBs)
+Your Stack: $${formatChips(activePlayer.chips)} (${stackInBB} BBs)
 
 === HAND ===
 Cards: ${formatCards(activePlayer.hand)}
@@ -350,11 +355,11 @@ Based on the FULL history (previous streets) and current table state, make a dec
     `;
 
   // --- DEBUG LOGGING ---
-  // console.log(
-  //   `%c--- AI PROMPT (${activePlayer.name}) ---`,
-  //   "background: #222; color: #bada55",
-  //   prompt
-  // );
+  console.log(
+    `%c--- AI PROMPT (${activePlayer.name}) ---`,
+    "background: #222; color: #bada55",
+    prompt
+  );
 
   try {
     const response = await ai.models.generateContent({

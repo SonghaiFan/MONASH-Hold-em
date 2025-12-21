@@ -53,10 +53,10 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
         // Scale: Only applied when Increasing.
         // Base 1.1x. Add 0.08x per power of 10.
         // Delta 100 -> ~1.26x
-        // Delta 10,000 -> ~1.42x
-        // Cap at 1.6x
+        // Delta 10,000 -> ~1.4x
+        // Cap at 1.4x
         const targetScale = isUp 
-            ? Math.min(1.6, 1.1 + Math.log10(Math.max(1, absDelta)) * 0.08)
+            ? Math.min(1.4, 1.1 + Math.log10(Math.max(1, absDelta)) * 0.08)
             : 1;
 
         setDynamicScale(targetScale);
@@ -110,7 +110,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
                 transformOrigin: 'center center'
             }}
         >
-            {prefix}{isAnimating ? displayValue.toLocaleString() : formatChips(displayValue)}
+            {prefix}{formatChips(displayValue, isAnimating)}
         </span>
     );
 };
