@@ -17,7 +17,7 @@ interface PokerGameProps {
 export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     // Centralized Game State
     const [gameState, setGameState] = useState<GameState>(() => initializeGame(config));
-    
+
     // Transient state to show AI decision immediately before the delay/action execution
     const [aiIntent, setAiIntent] = useState<{ playerId: string; action: string; amount?: number } | null>(null);
 
@@ -47,16 +47,16 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             // Heads Up: Dealer is SB, other is BB
             return indexFromDealer === 0 ? 'SB' : 'BB';
         }
-        
+
         if (indexFromDealer === 0) return 'BTN';
         if (indexFromDealer === 1) return 'SB';
         if (indexFromDealer === 2) return 'BB';
-        
+
         // Positions going backwards from Dealer
         const distFromButton = playerCount - indexFromDealer;
         if (distFromButton === 1) return 'CO'; // Cutoff is always before Button
         if (distFromButton === 2 && playerCount >= 5) return 'HJ'; // Hijack is before Cutoff (if enough players)
-        
+
         // Positions going forwards from BB
         const distFromBB = indexFromDealer - 2;
         if (distFromBB === 1) return 'UTG';
@@ -70,7 +70,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         setAiIntent(null);
         setGameState(prevState => {
             const newDeck = generateDeck();
-            
+
             // 1. Identify Valid Players (Chips > 0)
             // originalIndex is preserved to map back to the main players array
             const activePlayerIndices = prevState.players
@@ -81,19 +81,19 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             // Check Game Over (Winner)
             const humanIndex = prevState.players.findIndex(p => p.isHuman);
             if (activePlayerIndices.length === 1 && activePlayerIndices[0] === humanIndex) {
-                 return prevState; 
+                return prevState;
             }
 
             // 2. Rotate Dealer *among active players*
             let currentActiveDealerIndex = activePlayerIndices.findIndex(idx => idx === prevState.dealerIndex);
-            
+
             if (currentActiveDealerIndex === -1) {
                 // Previous dealer busted, find next available
                 const nextValid = activePlayerIndices.find(idx => idx > prevState.dealerIndex);
                 const nextValidIndex = nextValid !== undefined ? activePlayerIndices.indexOf(nextValid) : 0;
                 currentActiveDealerIndex = nextValidIndex;
             } else {
-                 currentActiveDealerIndex = (currentActiveDealerIndex + 1) % activePlayerIndices.length;
+                currentActiveDealerIndex = (currentActiveDealerIndex + 1) % activePlayerIndices.length;
             }
 
             const newDealerRealIndex = activePlayerIndices[currentActiveDealerIndex];
@@ -102,7 +102,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             // 3. Assign Roles & Positions
             const updatedPlayers = prevState.players.map((p, i) => {
                 const isEliminated = p.chips <= 0;
-                
+
                 if (isEliminated) {
                     return {
                         ...p,
@@ -117,15 +117,15 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
                 // Determine position in the active ring relative to dealer
                 const activeIdx = activePlayerIndices.indexOf(i);
-                
+
                 // Calculate clockwise distance from dealer (0 = Dealer, 1 = Left of Dealer, etc)
                 const offsetFromDealer = (activeIdx - currentActiveDealerIndex + activeCount) % activeCount;
-                
+
                 const positionLabel = getPositionLabel(offsetFromDealer, activeCount);
                 const isDealer = (offsetFromDealer === 0);
 
                 const hand = [newDeck.pop()!, newDeck.pop()!];
-                
+
                 return {
                     ...p,
                     hand,
@@ -133,7 +133,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     status: 'WAITING' as PlayerAction,
                     position: positionLabel,
                     isDealer: isDealer,
-                    currentBet: 0
+                    currentBet: 0,
+                    reasoningHistory: []
                 };
             });
 
@@ -161,8 +162,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const pot = sbAmount + bbAmount;
 
             const initialBoard = [
-                newDeck.pop()!, newDeck.pop()!, newDeck.pop()!, 
-                newDeck.pop()!, 
+                newDeck.pop()!, newDeck.pop()!, newDeck.pop()!,
+                newDeck.pop()!,
                 newDeck.pop()!
             ];
 
@@ -204,7 +205,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     const handleRebuy = useCallback(() => {
         setGameState(prev => ({
             ...prev,
-            players: prev.players.map(p => 
+            players: prev.players.map(p =>
                 p.isHuman ? { ...p, chips: config.startingStackHuman, status: 'WAITING' as PlayerAction, isDealer: false } : p
             )
         }));
@@ -224,25 +225,25 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     useEffect(() => {
         if (gameState.isRunningOut) {
             const timer = setTimeout(() => {
-                 setGameState(prev => {
-                     let nextPhase = prev.phase;
-                     let stopRunout = false;
+                setGameState(prev => {
+                    let nextPhase = prev.phase;
+                    let stopRunout = false;
 
-                     if (prev.phase === GamePhase.PRE_FLOP) nextPhase = GamePhase.FLOP;
-                     else if (prev.phase === GamePhase.FLOP) nextPhase = GamePhase.TURN;
-                     else if (prev.phase === GamePhase.TURN) nextPhase = GamePhase.RIVER;
-                     else if (prev.phase === GamePhase.RIVER) {
-                         nextPhase = GamePhase.SHOWDOWN;
-                         stopRunout = true; 
-                     }
+                    if (prev.phase === GamePhase.PRE_FLOP) nextPhase = GamePhase.FLOP;
+                    else if (prev.phase === GamePhase.FLOP) nextPhase = GamePhase.TURN;
+                    else if (prev.phase === GamePhase.TURN) nextPhase = GamePhase.RIVER;
+                    else if (prev.phase === GamePhase.RIVER) {
+                        nextPhase = GamePhase.SHOWDOWN;
+                        stopRunout = true;
+                    }
 
-                     return {
-                         ...prev,
-                         phase: nextPhase,
-                         isRunningOut: !stopRunout
-                     };
-                 });
-            }, 1200); 
+                    return {
+                        ...prev,
+                        phase: nextPhase,
+                        isRunningOut: !stopRunout
+                    };
+                });
+            }, 1200);
             return () => clearTimeout(timer);
         }
     }, [gameState.isRunningOut, gameState.phase]);
@@ -250,12 +251,12 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     // 2. SHOWDOWN CALCULATION EFFECT
     useEffect(() => {
         if (gameState.phase === GamePhase.SHOWDOWN && !gameState.winningHand) {
-            
+
             const result = determineWinner(gameState.players, gameState.board, gameState.pots);
-            
+
             const payoutFn = (prev: GameState) => {
                 const players = [...prev.players];
-                
+
                 result.payouts.forEach(payout => {
                     const winnerPlayer = players.find(p => p.id === payout.playerId);
                     if (winnerPlayer) {
@@ -272,7 +273,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 }
 
                 let desc = result.primaryHand.name;
-                
+
                 if (result.isSplit) {
                     desc = `Split Pot (${result.primaryHand.name})`;
                 } else {
@@ -283,7 +284,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     if (wonMain && wonSides) {
                         desc = `${result.primaryHand.name} + Side Pots`;
                     } else if (wonMain && sidePotsExist) {
-                        desc = result.primaryHand.name; 
+                        desc = result.primaryHand.name;
                     }
                 }
 
@@ -302,7 +303,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
             const activePlayers = gameState.players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
             const playerCount = activePlayers.length;
-            const totalRevealTime = (playerCount * 1500) + 1000; 
+            const totalRevealTime = (playerCount * 1500) + 1000;
 
             const timer = setTimeout(() => {
                 setGameState(p => payoutFn(p));
@@ -314,32 +315,61 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
 
     // Handle Player Action (Human or AI)
-    const handlePlayerAction = useCallback((playerId: string, action: 'fold' | 'call' | 'raise', amount?: number) => {
+    const handlePlayerAction = useCallback((playerId: string, action: 'fold' | 'call' | 'raise', amount?: number, reasoning?: string) => {
         setAiIntent(null);
 
         setGameState(prev => {
             const players = [...prev.players];
             const playerIndex = players.findIndex(p => p.id === playerId);
-            const player = players[playerIndex];
-            
-            if (!player) return prev;
 
-            let newPotDisplay = prev.pot; 
+            if (playerIndex === -1) return prev;
+
+            // Clone the player object to avoid mutating previous state (fixes duplicate reasoning in StrictMode)
+            const player = { ...players[playerIndex] };
+            players[playerIndex] = player;
+
+            // Update Reasoning History if provided
+            if (reasoning) {
+                const history = player.reasoningHistory || [];
+                const newEntry = `[${prev.phase}] ${reasoning}`;
+
+                // Check for duplicate to prevent spam (compare with last entry)
+                const lastEntry = history.length > 0 ? history[history.length - 1] : null;
+
+                if (lastEntry !== newEntry) {
+                    const newHistory = [...history, newEntry].slice(-10);
+                    player.reasoningHistory = newHistory;
+                }
+            }
+
+            let newPotDisplay = prev.pot;
             const currentHighBet = Math.max(...players.map(p => p.currentBet));
             const toCall = currentHighBet - player.currentBet;
-            
+
             // --- Log Building ---
             let logEntry = `${prev.phase}: ${player.name} (${player.position}) `;
+
+            // Helper to count raises in current phase
+            const countRaisesInPhase = (history: string[], currentPhase: string) => {
+                let raises = 0;
+                for (let i = history.length - 1; i >= 0; i--) {
+                    if (history[i].includes(`--- ${currentPhase} ---`)) break;
+                    if (history[i].includes('RAISES') || history[i].includes('-BETS')) {
+                        raises++;
+                    }
+                }
+                return raises;
+            };
 
             // --- 1. EXECUTE ACTION ---
             if (action === 'fold') {
                 player.status = 'FOLDED';
                 player.isActive = false;
                 logEntry += `FOLDS`;
-            } 
+            }
             else if (action === 'call') {
                 const actualCallAmount = Math.min(toCall, player.chips);
-                
+
                 player.chips -= actualCallAmount;
                 player.currentBet += actualCallAmount;
                 newPotDisplay += actualCallAmount;
@@ -354,10 +384,10 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     player.status = 'CALLED';
                     logEntry += `CALLS $${actualCallAmount}`;
                 }
-            } 
+            }
             else if (action === 'raise') {
                 let totalBetAmount = amount || (currentHighBet + prev.minRaise);
-                
+
                 const maxTotalBet = player.chips + player.currentBet;
                 if (totalBetAmount >= maxTotalBet) {
                     totalBetAmount = maxTotalBet;
@@ -372,12 +402,18 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 player.currentBet = totalBetAmount;
                 newPotDisplay += addedChips;
 
+                const raiseCount = countRaisesInPhase(prev.handHistory, prev.phase);
+                let raiseLabel = "RAISES";
+                if (raiseCount === 1) raiseLabel = "3-BETS";
+                else if (raiseCount === 2) raiseLabel = "4-BETS";
+                else if (raiseCount >= 3) raiseLabel = `${raiseCount + 2}-BETS`;
+
                 if (player.chips === 0) {
                     player.status = 'ALL-IN';
-                    logEntry += `RAISES ALL-IN to $${totalBetAmount}`;
+                    logEntry += `${raiseLabel} ALL-IN to $${totalBetAmount}`;
                 } else {
                     player.status = 'RAISED';
-                    logEntry += `RAISES to $${totalBetAmount}`;
+                    logEntry += `${raiseLabel} to $${totalBetAmount}`;
                 }
             }
 
@@ -386,33 +422,40 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             // --- 2. CHECK FOR WINNER (Folded out) ---
             const activePlayers = players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
             if (activePlayers.length === 1) {
-                 const winner = activePlayers[0];
-                 winner.chips += newPotDisplay; 
-                 const focalId = winner.isHuman ? null : winner.id; 
+                const winnerId = activePlayers[0].id;
+                const focalId = activePlayers[0].isHuman ? null : winnerId;
 
-                 return {
-                     ...prev,
-                     players,
-                     pot: 0,
-                     pots: [],
-                     activePlayerId: null,
-                     winningHand: {
-                         playerId: winner.id,
-                         cardIds: [],
-                         description: 'Opponents Folded',
-                         focalPlayerId: focalId || undefined
-                     },
-                     handHistory: updatedHistory
-                 };
-            }
+                // Reset bets for all players AND award pot to winner (Immutable update)
+                const playersReset = players.map(p => {
+                    const isWinner = p.id === winnerId;
+                    return {
+                        ...p,
+                        currentBet: 0,
+                        chips: isWinner ? p.chips + newPotDisplay : p.chips
+                    };
+                });
 
-            // --- 3. CHECK ROUND COMPLETION & AUTO-RUNOUT ---
+                return {
+                    ...prev,
+                    players: playersReset,
+                    pot: 0,
+                    pots: [],
+                    activePlayerId: null,
+                    winningHand: {
+                        playerId: winnerId,
+                        cardIds: [],
+                        description: 'Opponents Folded',
+                        focalPlayerId: focalId || undefined
+                    },
+                    handHistory: updatedHistory
+                };
+            }            // --- 3. CHECK ROUND COMPLETION & AUTO-RUNOUT ---
             const nextHighBet = Math.max(...players.map(p => p.currentBet));
-            
+
             const isRoundComplete = activePlayers.every(p => {
                 if (p.status === 'FOLDED' || p.status === 'ALL-IN' || p.status === 'ELIMINATED') return true;
-                if (p.status === 'WAITING' || p.status === 'THINKING') return false; 
-                return p.currentBet === nextHighBet; 
+                if (p.status === 'WAITING' || p.status === 'THINKING') return false;
+                return p.currentBet === nextHighBet;
             });
 
             const playersWithChips = activePlayers.filter(p => p.status !== 'ALL-IN' && p.chips > 0);
@@ -420,11 +463,11 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
             if (isRoundComplete) {
                 const resolvedPots = resolvePots(players, prev.pots);
-                
-                const nextPhase = 
+
+                const nextPhase =
                     prev.phase === GamePhase.PRE_FLOP ? GamePhase.FLOP :
-                    prev.phase === GamePhase.FLOP ? GamePhase.TURN :
-                    prev.phase === GamePhase.TURN ? GamePhase.RIVER : GamePhase.SHOWDOWN;
+                        prev.phase === GamePhase.FLOP ? GamePhase.TURN :
+                            prev.phase === GamePhase.TURN ? GamePhase.RIVER : GamePhase.SHOWDOWN;
 
                 let startRunout = false;
                 if (isAllInScenario && nextPhase !== GamePhase.SHOWDOWN) {
@@ -432,17 +475,17 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 }
 
                 // Reset bets
-                const playersReset = players.map(p => ({ 
-                    ...p, 
-                    currentBet: 0, 
-                    status: (p.status === 'FOLDED' || p.status === 'ALL-IN' || p.status === 'ELIMINATED') ? p.status : 'WAITING' as PlayerAction 
+                const playersReset = players.map(p => ({
+                    ...p,
+                    currentBet: 0,
+                    status: (p.status === 'FOLDED' || p.status === 'ALL-IN' || p.status === 'ELIMINATED') ? p.status : 'WAITING' as PlayerAction
                 }));
 
                 // Determine first actor
                 let firstActorIndex = (prev.dealerIndex + 1) % players.length;
                 let loops = 0;
                 while (
-                    (playersReset[firstActorIndex].status === 'FOLDED' || playersReset[firstActorIndex].status === 'ALL-IN' || playersReset[firstActorIndex].status === 'ELIMINATED') 
+                    (playersReset[firstActorIndex].status === 'FOLDED' || playersReset[firstActorIndex].status === 'ALL-IN' || playersReset[firstActorIndex].status === 'ELIMINATED')
                     && loops < players.length
                 ) {
                     firstActorIndex = (firstActorIndex + 1) % players.length;
@@ -450,7 +493,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 }
 
                 const nextActiveId = (nextPhase === GamePhase.SHOWDOWN || startRunout) ? null : playersReset[firstActorIndex].id;
-                
+
                 // Add Phase change to Log
                 if (nextPhase !== GamePhase.SHOWDOWN) {
                     updatedHistory.push(`--- ${nextPhase} ---`);
@@ -460,7 +503,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     ...prev,
                     players: playersReset,
                     pot: newPotDisplay,
-                    pots: resolvedPots, 
+                    pots: resolvedPots,
                     phase: nextPhase,
                     activePlayerId: nextActiveId,
                     isRunningOut: startRunout,
@@ -472,7 +515,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             let nextIndex = (playerIndex + 1) % players.length;
             let loops = 0;
             while (
-                (players[nextIndex].status === 'FOLDED' || players[nextIndex].status === 'ALL-IN' || players[nextIndex].status === 'ELIMINATED') 
+                (players[nextIndex].status === 'FOLDED' || players[nextIndex].status === 'ALL-IN' || players[nextIndex].status === 'ELIMINATED')
                 && loops < players.length
             ) {
                 nextIndex = (nextIndex + 1) % players.length;
@@ -499,22 +542,23 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         }
 
         if (activePlayer && !activePlayer.isHuman && activePlayer.isActive && activePlayer.status !== 'ALL-IN' && activePlayer.status !== 'ELIMINATED') {
-            if (aiProcessingRef.current) return; 
+            if (aiProcessingRef.current) return;
             aiProcessingRef.current = true;
 
             const makeAIMove = async () => {
                 const highBet = Math.max(...gameState.players.map(p => p.currentBet));
                 const toCall = highBet - activePlayer.currentBet;
-                
+
                 const decision = await getAIDecision(
                     activePlayer,
-                    gameState.players, 
+                    gameState.players,
                     gameState.board,
                     gameState.pot,
                     gameState.phase,
                     highBet,
                     config.blindBig,
-                    gameState.handHistory
+                    gameState.handHistory,
+                    activePlayer.reasoningHistory
                 );
 
                 console.group(`🤖 AI Decision: ${activePlayer.name}`);
@@ -537,9 +581,9 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 });
 
                 setTimeout(() => {
-                    handlePlayerAction(activePlayer.id, decision.action, decision.amount);
+                    handlePlayerAction(activePlayer.id, decision.action, decision.amount, decision.reasoning);
                     aiProcessingRef.current = false;
-                }, 1000); 
+                }, 1000);
             };
 
             makeAIMove();
@@ -549,14 +593,14 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     // Derived State
     const humanPlayer = gameState.players.find(p => p.isHuman);
     const aiPlayers = gameState.players.filter(p => !p.isHuman);
-    
+
     const isHumanTurn = gameState.activePlayerId === humanPlayer?.id;
     const humanToCall = humanPlayer ? getAmountToCall(humanPlayer.id) : 0;
     const humanHasFolded = humanPlayer?.status === 'FOLDED' || !humanPlayer?.isActive;
 
     const isHandComplete = gameState.activePlayerId === null && !gameState.isRunningOut && gameState.winningHand !== null;
     const isHumanBusted = humanPlayer && humanPlayer.chips <= 0 && isHandComplete;
-    
+
     const activeAiCount = aiPlayers.filter(p => p.chips > 0).length;
     const isTournamentWon = activeAiCount === 0 && (humanPlayer && humanPlayer.chips > 0) && isHandComplete;
 
@@ -571,58 +615,58 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
     return (
         <div className="flex flex-col h-full w-full z-10 overflow-hidden relative">
-            <button 
+            <button
                 onClick={onExit}
                 className="absolute top-4 left-4 z-50 p-2 rounded-full bg-black/40 text-white/30 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md"
                 title="Exit Game"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
             </button>
 
             {/* READY OVERLAY */}
             {!hasStarted && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-                     <div className="flex flex-col items-center gap-4 md:gap-6 p-4 md:p-8 relative">
-                         <div className="absolute inset-0 bg-[#d4af37]/5 blur-3xl rounded-full" />
-                         <div className="text-base md:text-2xl font-light tracking-widest text-white font-sans uppercase relative z-10 text-center">
-                             Table Initialized
-                         </div>
-                         <ActionButton 
-                            onClick={handleStartGame} 
-                            variant="gold" 
+                    <div className="flex flex-col items-center gap-4 md:gap-6 p-4 md:p-8 relative">
+                        <div className="absolute inset-0 bg-[#d4af37]/5 blur-3xl rounded-full" />
+                        <div className="text-base md:text-2xl font-light tracking-widest text-white font-sans uppercase relative z-10 text-center">
+                            Table Initialized
+                        </div>
+                        <ActionButton
+                            onClick={handleStartGame}
+                            variant="gold"
                             className="px-8 py-4 md:px-12 md:py-6 text-xs md:text-lg tracking-[0.2em] md:tracking-[0.3em] relative z-10 shadow-[0_0_30px_rgba(212,175,55,0.2)] md:shadow-[0_0_50px_rgba(212,175,55,0.3)] hover:shadow-[0_0_70px_rgba(212,175,55,0.5)]"
-                         >
-                             I'M READY
-                         </ActionButton>
-                     </div>
+                        >
+                            I'M READY
+                        </ActionButton>
+                    </div>
                 </div>
             )}
 
             {/* AI Stratum: Flies in from TOP */}
             <div className="w-full shrink-0 animate-slide-in-top z-30">
-                <AIStratum 
-                    players={aiPlayers} 
-                    activePlayerId={gameState.activePlayerId} 
+                <AIStratum
+                    players={aiPlayers}
+                    activePlayerId={gameState.activePlayerId}
                     phase={gameState.phase}
                     humanHasFolded={humanHasFolded}
                     winningHand={gameState.winningHand}
                     aiIntent={aiIntent}
                 />
             </div>
-            
+
             {/* Table Stratum: Zooms/Fades in with Delay */}
             <div className="w-full grow flex flex-col justify-center animate-zoom-fade-in z-10" style={{ animationDelay: '0.3s' }}>
-                <TableStratum 
-                    pot={gameState.pot} 
-                    board={gameState.board} 
-                    phase={gameState.phase} 
+                <TableStratum
+                    pot={gameState.pot}
+                    board={gameState.board}
+                    phase={gameState.phase}
                     winningHand={gameState.winningHand}
                 />
             </div>
-            
+
             {/* Player Stratum: Flies in from BOTTOM */}
             <div className="w-full shrink-0 animate-slide-in-bottom z-30">
-                <PlayerStratum 
+                <PlayerStratum
                     player={humanPlayer}
                     potSize={gameState.pot}
                     onAction={(a, amt) => handlePlayerAction(humanPlayer.id, a, amt)}

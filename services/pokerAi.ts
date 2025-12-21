@@ -46,7 +46,8 @@ export const getAIDecision = async (
   phase: GamePhase,
   currentHighBet: number,
   bigBlind: number,
-  handHistory: string[]
+  handHistory: string[],
+  reasoningHistory: string[] = []
 ): Promise<AIDecision> => {
   const toCall = currentHighBet - activePlayer.currentBet;
   const potOdds = calculatePotOdds(toCall, pot);
@@ -207,7 +208,7 @@ Return ONLY a JSON object:
 {
   "action": "fold" | "call" | "raise",
   "amount"?: number,
-  "reasoning": "explanation for the chosen action in CHINESE"
+  "reasoning": "concise explanation of thought process in one sentence"
 }
 
 --------------------------------
@@ -232,6 +233,13 @@ Board: ${visibleBoard.length ? formatCards(visibleBoard) : "Clean"}
 
 === FULL HAND HISTORY ===
 ${handHistory.length > 0 ? handHistory.join("\n") : "No actions yet."}
+
+=== YOUR PREVIOUS REASONING ===
+${
+  reasoningHistory.length > 0
+    ? reasoningHistory.join("\n---\n")
+    : "No previous thoughts."
+}
 
 === CURRENT TABLE STATE ===
 ${actionSequence}
