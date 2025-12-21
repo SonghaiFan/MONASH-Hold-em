@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Poker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --bg-dark: #0a0a0a;
@@ -20,7 +24,8 @@
             --ease-smooth: cubic-bezier(0.4, 0.0, 0.2, 1);
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
             width: 100%;
             margin: 0;
@@ -47,6 +52,7 @@
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -56,15 +62,19 @@
         .perspective-1000 {
             perspective: 1200px;
         }
+
         .transform-style-3d {
             transform-style: preserve-3d;
         }
+
         .backface-hidden {
             backface-visibility: hidden;
         }
+
         .rotate-y-180 {
             transform: rotateY(180deg);
         }
+
         .rotate-y-0 {
             transform: rotateY(0deg);
         }
@@ -75,56 +85,92 @@
                 opacity: 0;
                 transform: translateY(120%) scale(0.8) rotateX(45deg);
             }
+
             100% {
                 opacity: 1;
                 transform: translateY(0) scale(1) rotateX(0);
             }
         }
-        
+
         /* New Interface Entry Animations */
         @keyframes slideInFromTop {
-            0% { transform: translateY(-100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
-        
+
         @keyframes slideInFromBottom {
-            0% { transform: translateY(100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+            0% {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
-        
+
         @keyframes zoomFadeIn {
-            0% { transform: scale(0.9); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            0% {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .animate-deal {
             animation: dealSlide 0.6s var(--ease-out-expo) backwards;
         }
-        
+
         .animate-slide-in-top {
             animation: slideInFromTop 1.2s var(--ease-out-expo) backwards;
         }
-        
+
         .animate-slide-in-bottom {
             animation: slideInFromBottom 1.2s var(--ease-out-expo) backwards;
         }
-        
+
         .animate-zoom-fade-in {
             animation: zoomFadeIn 1.5s var(--ease-out-expo) backwards;
         }
 
         /* 3D Floating Background Animations */
         @keyframes float-3d-slow {
-            0%, 100% { transform: translateY(0) rotateZ(-10deg) rotateY(10deg); }
-            50% { transform: translateY(-30px) rotateZ(-5deg) rotateY(25deg); }
+
+            0%,
+            100% {
+                transform: translateY(0) rotateZ(-10deg) rotateY(10deg);
+            }
+
+            50% {
+                transform: translateY(-30px) rotateZ(-5deg) rotateY(25deg);
+            }
         }
-        
+
         @keyframes float-3d-reverse {
-            0%, 100% { transform: translateY(0) rotateZ(10deg) rotateY(-10deg); }
-            50% { transform: translateY(30px) rotateZ(5deg) rotateY(-25deg); }
+
+            0%,
+            100% {
+                transform: translateY(0) rotateZ(10deg) rotateY(-10deg);
+            }
+
+            50% {
+                transform: translateY(30px) rotateZ(5deg) rotateY(-25deg);
+            }
         }
     </style>
-<script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
@@ -136,7 +182,10 @@
 }
 </script>
 </head>
+
 <body>
     <div id="root"></div>
+    <script type="module" src="index.jsx"></script>
 </body>
+
 </html>
