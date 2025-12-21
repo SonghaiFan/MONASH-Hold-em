@@ -218,7 +218,6 @@ RAISE RULES (MANDATORY)
 - If raising, "amount" must be the NEW TOTAL bet.
 - Raise sizes must be clean, intentional, and non-random.
 - Do NOT include "amount" when checking (call with $0).
-- Use "check" action when you want to check (toCall is 0).
     `;
 
   const prompt = `
@@ -258,10 +257,11 @@ Based on the FULL history (previous streets) and current table state, make a GTO
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash-lite",
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
