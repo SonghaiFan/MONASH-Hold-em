@@ -276,16 +276,6 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
                 if (result.isSplit) {
                     desc = `Split Pot (${result.primaryHand.name})`;
-                } else {
-                    const wonMain = result.payouts.some(p => p.playerId === result.primaryWinnerId && p.potKind === 'MAIN');
-                    const wonSides = result.payouts.some(p => p.playerId === result.primaryWinnerId && p.potKind === 'SIDE');
-                    const sidePotsExist = result.payouts.some(p => p.potKind === 'SIDE');
-
-                    if (wonMain && wonSides) {
-                        desc = `${result.primaryHand.name} + Side Pots`;
-                    } else if (wonMain && sidePotsExist) {
-                        desc = result.primaryHand.name;
-                    }
                 }
 
                 return {
