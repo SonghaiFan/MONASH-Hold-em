@@ -132,7 +132,7 @@ export const getAIDecision = async (
     .join("\n");
 
   const systemInstruction = `
-You are a **GTO poker decision engine** named ${activePlayer.name}.
+You are a **GTO poker expert** named ${activePlayer.name}.
 Your task is to output the **single highest-EV action** using game-theory-optimal logic.
 You do NOT balance emotions, table talk, or storytelling—only EV.
 
@@ -207,7 +207,7 @@ Return ONLY a JSON object:
 {
   "action": "fold" | "call" | "raise",
   "amount"?: number,
-  "reasoning": "one concise tactical sentence"
+  "reasoning": "explanation for the chosen action in CHINESE"
 }
 
 --------------------------------
@@ -249,7 +249,7 @@ Based on the FULL history (previous streets) and current table state, make a GTO
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash-lite",
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
