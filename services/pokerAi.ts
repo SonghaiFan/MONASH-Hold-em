@@ -249,15 +249,15 @@ Based on the FULL history (previous streets) and current table state, make a GTO
     `;
 
   // --- DEBUG LOGGING ---
-  console.log(
-    `%c--- AI PROMPT (${activePlayer.name}) ---`,
-    "background: #222; color: #bada55",
-    prompt
-  );
+  // console.log(
+  //   `%c--- AI PROMPT (${activePlayer.name}) ---`,
+  //   "background: #222; color: #bada55",
+  //   prompt
+  // );
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-2.0-flash-lite",
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,

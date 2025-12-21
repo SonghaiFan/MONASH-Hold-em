@@ -6,7 +6,6 @@ import { generateDeck, initializeGame } from '../constants';
 import { GamePhase, GameState, PlayerAction, GameConfig } from '../types';
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
-import { resolvePots } from '../services/potManager';
 import { ActionButton } from './ActionButton';
 
 interface PokerGameProps {
@@ -255,13 +254,19 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const result = determineWinner(gameState.players, gameState.board, gameState.pots);
 
             const payoutFn = (prev: GameState) => {
-                const players = [...prev.players];
+                // Create a map for O(1) lookup of winnings
+                const winnings = new Map<string, number>();
+                result.payouts.forEach(p => {
+                    winnings.set(p.playerId, (winnings.get(p.playerId) || 0) + p.amount);
+                });
 
-                result.payouts.forEach(payout => {
-                    const winnerPlayer = players.find(p => p.id === payout.playerId);
-                    if (winnerPlayer) {
-                        winnerPlayer.chips += payout.amount;
+                // Immutable update of players
+                const players = prev.players.map(p => {
+                    const amountWon = winnings.get(p.id);
+                    if (amountWon) {
+                        return { ...p, chips: p.chips + amountWon };
                     }
+                    return p;
                 });
 
                 let focalId = result.primaryWinnerId;
@@ -452,7 +457,27 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const isAllInScenario = playersWithChips.length <= 1 && activePlayers.length >= 2;
 
             if (isRoundComplete) {
-                const resolvedPots = resolvePots(players, prev.pots);
+                // --- RESOLVE POTS (Simplified: Single Main Pot) ---
+                let newPots = prev.pots.map(pot => ({ ...pot }));
+                const roundBets = players.reduce((sum, p) => sum + p.currentBet, 0);
+
+                if (roundBets > 0) {
+                    let mainPot = newPots.find(p => p.kind === 'MAIN');
+                    if (!mainPot) {
+                        mainPot = {
+                            id: 'main-pot',
+                            amount: 0,
+                            eligiblePlayerIds: [],
+                            kind: 'MAIN'
+                        };
+                        newPots = [mainPot];
+                    }
+                    mainPot.amount += roundBets;
+                    mainPot.eligiblePlayerIds = players
+                        .filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED')
+                        .map(p => p.id);
+                }
+                const resolvedPots = newPots;
 
                 const nextPhase =
                     prev.phase === GamePhase.PRE_FLOP ? GamePhase.FLOP :
