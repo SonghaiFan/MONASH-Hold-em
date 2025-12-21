@@ -310,7 +310,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
 
     // Handle Player Action (Human or AI)
-    const handlePlayerAction = useCallback((playerId: string, action: 'fold' | 'call' | 'raise', amount?: number, reasoning?: string) => {
+    const handlePlayerAction = useCallback((playerId: string, action: 'fold' | 'call' | 'raise' | 'check', amount?: number, reasoning?: string) => {
         setAiIntent(null);
 
         setGameState(prev => {
@@ -361,6 +361,17 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 player.status = 'FOLDED';
                 player.isActive = false;
                 logEntry += `FOLDS`;
+            }
+            else if (action === 'check') {
+                if (toCall > 0) {
+                    // Invalid check (should not happen with correct AI/UI logic), treat as fold
+                    player.status = 'FOLDED';
+                    player.isActive = false;
+                    logEntry += `FOLDS (Invalid Check)`;
+                } else {
+                    player.status = 'CHECKED';
+                    logEntry += `CHECKS`;
+                }
             }
             else if (action === 'call') {
                 const actualCallAmount = Math.min(toCall, player.chips);

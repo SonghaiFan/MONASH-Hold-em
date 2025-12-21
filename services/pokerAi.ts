@@ -4,7 +4,7 @@ import { Card, GamePhase, Player } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface AIDecision {
-  action: "fold" | "call" | "raise";
+  action: "fold" | "check" | "call" | "raise";
   amount?: number;
   reasoning?: string;
 }
@@ -206,7 +206,7 @@ OUTPUT FORMAT (STRICT)
 Return ONLY a JSON object:
 
 {
-  "action": "fold" | "call" | "raise",
+  "action": "fold" | "check" | "call" | "raise",
   "amount"?: number,
   "reasoning": "concise explanation of thought process in one sentence"
 }
@@ -218,6 +218,7 @@ RAISE RULES (MANDATORY)
 - If raising, "amount" must be the NEW TOTAL bet.
 - Raise sizes must be clean, intentional, and non-random.
 - Do NOT include "amount" when checking (call with $0).
+- Use "check" action when you want to check (toCall is 0).
     `;
 
   const prompt = `
@@ -261,11 +262,13 @@ Based on the FULL history (previous streets) and current table state, make a GTO
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            action: { type: Type.STRING, enum: ["fold", "call", "raise"] },
+            action: {
+              type: Type.STRING,
+              enum: ["fold", "check", "call", "raise"],
+            },
             amount: { type: Type.INTEGER },
             reasoning: { type: Type.STRING },
           },
@@ -293,8 +296,8 @@ Based on the FULL history (previous streets) and current table state, make a GTO
 
       decision.amount = validAmount;
     }
-
-    if (decision.action === "call") delete decision.amount;
+    if (decision.action === "call" || decision.action === "check")
+      delete decision.amount;
 
     return decision;
   } catch (error) {
