@@ -40,7 +40,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({
         <div
           key={index}
           className={`
-                        relative transition-all duration-500 ease-out hover:!z-50 hover:-translate-y-6
+                        relative transition-all duration-500 ease-out hover:!z-50 
                         /* Mobile: Negative margin for overlap */
                         ${index === 0 ? "ml-0" : "-ml-[1em] md:ml-3"}
                     `}
