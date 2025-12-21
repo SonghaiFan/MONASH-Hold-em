@@ -7,6 +7,7 @@ import { GamePhase, GameState, PlayerAction, GameConfig } from '../types';
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
 import { ActionButton } from './ActionButton';
+import { formatChips } from '../utils';
 
 interface PokerGameProps {
     config: GameConfig;
@@ -70,15 +71,23 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         setGameState(prevState => {
             const newDeck = generateDeck();
 
+            // 0. Auto-Rebuy for AI (Cash Game Logic)
+            const playersWithRebuys = prevState.players.map(p => {
+                if (!p.isHuman && p.chips <= 0) {
+                    return { ...p, chips: config.startingStackAI, status: 'WAITING' as PlayerAction };
+                }
+                return p;
+            });
+
             // 1. Identify Valid Players (Chips > 0)
             // originalIndex is preserved to map back to the main players array
-            const activePlayerIndices = prevState.players
+            const activePlayerIndices = playersWithRebuys
                 .map((p, index) => ({ ...p, originalIndex: index }))
                 .filter(p => p.chips > 0)
                 .map(p => p.originalIndex);
 
             // Check Game Over (Winner)
-            const humanIndex = prevState.players.findIndex(p => p.isHuman);
+            const humanIndex = playersWithRebuys.findIndex(p => p.isHuman);
             if (activePlayerIndices.length === 1 && activePlayerIndices[0] === humanIndex) {
                 return prevState;
             }
@@ -99,7 +108,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const activeCount = activePlayerIndices.length;
 
             // 3. Assign Roles & Positions
-            const updatedPlayers = prevState.players.map((p, i) => {
+            const updatedPlayers = playersWithRebuys.map((p, i) => {
                 const isEliminated = p.chips <= 0;
 
                 if (isEliminated) {
@@ -247,66 +256,85 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         }
     }, [gameState.isRunningOut, gameState.phase]);
 
-    // 2. SHOWDOWN CALCULATION EFFECT
+    // 2a. SHOWDOWN: Determine Winner Immediately (Visual Feedback)
     useEffect(() => {
         if (gameState.phase === GamePhase.SHOWDOWN && !gameState.winningHand) {
-
             const result = determineWinner(gameState.players, gameState.board, gameState.pots);
-
-            const payoutFn = (prev: GameState) => {
-                // Create a map for O(1) lookup of winnings
-                const winnings = new Map<string, number>();
-                result.payouts.forEach(p => {
-                    winnings.set(p.playerId, (winnings.get(p.playerId) || 0) + p.amount);
-                });
-
-                // Immutable update of players
-                const players = prev.players.map(p => {
-                    const amountWon = winnings.get(p.id);
-                    if (amountWon) {
-                        return { ...p, chips: p.chips + amountWon };
-                    }
-                    return p;
-                });
-
+            
+            setGameState(prev => {
                 let focalId = result.primaryWinnerId;
                 const isHumanWinner = result.primaryWinnerId === prev.players.find(p => p.isHuman)?.id;
 
                 if (isHumanWinner && result.payouts.length > 0) {
-                    const runnerUp = players.find(p => !p.isHuman && p.isActive && p.id !== result.primaryWinnerId);
+                    const runnerUp = prev.players.find(p => !p.isHuman && p.isActive && p.id !== result.primaryWinnerId);
                     if (runnerUp) focalId = runnerUp.id;
                 }
 
                 let desc = result.primaryHand.name;
-
                 if (result.isSplit) {
                     desc = `Split Pot (${result.primaryHand.name})`;
                 }
 
+                const allWinnerIds = Array.from(new Set(result.payouts.map(p => p.playerId)));
+
+                // Update pots with their specific winners
+                const updatedPots = prev.pots.map(pot => {
+                    const potWinners = result.payouts
+                        .filter(p => p.potId === pot.id)
+                        .map(p => p.playerId);
+                    return { ...pot, winners: potWinners };
+                });
+
                 return {
                     ...prev,
-                    players,
-                    pot: 0,
+                    pots: updatedPots,
                     winningHand: {
                         playerId: result.primaryWinnerId,
+                        winnerIds: allWinnerIds,
                         cardIds: result.primaryHand.winningCardIds,
                         description: desc,
                         focalPlayerId: focalId
                     }
                 };
-            };
+            });
+        }
+    }, [gameState.phase, gameState.winningHand, gameState.players, gameState.board, gameState.pots]);
 
+    // 2b. SHOWDOWN: Delayed Payout (Chip Update)
+    useEffect(() => {
+        if (gameState.phase === GamePhase.SHOWDOWN && gameState.winningHand && gameState.pot > 0) {
+            
+            const result = determineWinner(gameState.players, gameState.board, gameState.pots);
             const activePlayers = gameState.players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
             const playerCount = activePlayers.length;
             const totalRevealTime = (playerCount * 1500) + 1000;
 
             const timer = setTimeout(() => {
-                setGameState(p => payoutFn(p));
+                setGameState(prev => {
+                    const winnings = new Map<string, number>();
+                    result.payouts.forEach(p => {
+                        winnings.set(p.playerId, (winnings.get(p.playerId) || 0) + p.amount);
+                    });
+
+                    const players = prev.players.map(p => {
+                        const amountWon = winnings.get(p.id);
+                        if (amountWon) {
+                            return { ...p, chips: p.chips + amountWon };
+                        }
+                        return p;
+                    });
+
+                    return {
+                        ...prev,
+                        players,
+                        pot: 0
+                    };
+                });
             }, totalRevealTime);
 
             return () => clearTimeout(timer);
         }
-    }, [gameState.phase, gameState.winningHand, gameState.players, gameState.board, gameState.pots]);
+    }, [gameState.phase, gameState.winningHand, gameState.pot, gameState.players, gameState.board, gameState.pots]);
 
 
     // Handle Player Action (Human or AI)
@@ -382,13 +410,13 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
                 if (player.chips === 0) {
                     player.status = 'ALL-IN';
-                    logEntry += `CALLS ALL-IN $${actualCallAmount}`;
+                    logEntry += `CALLS ALL-IN $${formatChips(actualCallAmount)}`;
                 } else if (actualCallAmount === 0 && toCall === 0) {
                     player.status = 'CHECKED';
                     logEntry += `CHECKS`;
                 } else {
                     player.status = 'CALLED';
-                    logEntry += `CALLS $${actualCallAmount}`;
+                    logEntry += `CALLS $${formatChips(actualCallAmount)}`;
                 }
             }
             else if (action === 'raise') {
@@ -416,10 +444,10 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
                 if (player.chips === 0) {
                     player.status = 'ALL-IN';
-                    logEntry += `${raiseLabel} ALL-IN to $${totalBetAmount}`;
+                    logEntry += `${raiseLabel} ALL-IN to $${formatChips(totalBetAmount)}`;
                 } else {
                     player.status = 'RAISED';
-                    logEntry += `${raiseLabel} to $${totalBetAmount}`;
+                    logEntry += `${raiseLabel} to $${formatChips(totalBetAmount)}`;
                 }
             }
 
@@ -468,27 +496,73 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const isAllInScenario = playersWithChips.length <= 1 && activePlayers.length >= 2;
 
             if (isRoundComplete) {
-                // --- RESOLVE POTS (Simplified: Single Main Pot) ---
-                let newPots = prev.pots.map(pot => ({ ...pot }));
-                const roundBets = players.reduce((sum, p) => sum + p.currentBet, 0);
+                // --- RESOLVE POTS (Side Pot Logic) ---
+                let currentPots = [...prev.pots];
+                
+                // 1. Collect all active bets
+                const activeBets = players.map(p => ({
+                    id: p.id,
+                    amount: p.currentBet,
+                    isFolded: p.status === 'FOLDED' || p.status === 'ELIMINATED'
+                })).filter(b => b.amount > 0);
 
-                if (roundBets > 0) {
-                    let mainPot = newPots.find(p => p.kind === 'MAIN');
-                    if (!mainPot) {
-                        mainPot = {
-                            id: 'main-pot',
-                            amount: 0,
-                            eligiblePlayerIds: [],
-                            kind: 'MAIN'
-                        };
-                        newPots = [mainPot];
-                    }
-                    mainPot.amount += roundBets;
-                    mainPot.eligiblePlayerIds = players
-                        .filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED')
-                        .map(p => p.id);
+                if (activeBets.length > 0) {
+                    // 2. Sort unique bet amounts (levels)
+                    const levels = Array.from(new Set(activeBets.map(b => b.amount))).sort((a, b) => a - b);
+                    
+                    let prevLevel = 0;
+
+                    levels.forEach(level => {
+                        const contribution = level - prevLevel;
+                        let potChunk = 0;
+                        const contributors: string[] = [];
+
+                        // 3. Calculate chunk for this level
+                        activeBets.forEach(bet => {
+                            const amount = Math.max(0, Math.min(bet.amount, level) - prevLevel);
+                            potChunk += amount;
+                            if (amount > 0 && !bet.isFolded) {
+                                contributors.push(bet.id);
+                            }
+                        });
+
+                        if (potChunk > 0) {
+                            // 4. Add to existing pot or create new one
+                            const lastPot = currentPots.length > 0 ? currentPots[currentPots.length - 1] : null;
+
+                            // Check if we can merge with the last pot
+                            // Condition: The set of eligible players must be identical.
+                            // Note: We compare sorted JSON strings for simple array equality check.
+                            const lastEligible = lastPot ? [...lastPot.eligiblePlayerIds].sort() : [];
+                            const currentEligible = [...contributors].sort();
+                            
+                            const isSameEligible = lastPot && JSON.stringify(lastEligible) === JSON.stringify(currentEligible);
+
+                            if (isSameEligible && lastPot) {
+                                lastPot.amount += potChunk;
+                            } else {
+                                // Create new pot
+                                // If only 1 contributor remains (everyone else folded/all-in lower), 
+                                // strictly speaking in a cash game, uncalled bets are returned immediately.
+                                // However, for simplicity in this state machine, we create a pot for it, 
+                                // and the evaluator will award it to the only eligible player.
+                                // (Or we could return it here, but that requires mutating player chips which is complex in this block).
+                                // Actually, standard side pot logic: If I bet 100 and opponent all-in for 10, 
+                                // I have a side pot of 90 with only me eligible. I win it immediately.
+                                
+                                currentPots.push({
+                                    id: `pot-${Date.now()}-${level}`,
+                                    amount: potChunk,
+                                    eligiblePlayerIds: contributors,
+                                    kind: currentPots.length === 0 ? 'MAIN' : 'SIDE'
+                                });
+                            }
+                        }
+                        prevLevel = level;
+                    });
                 }
-                const resolvedPots = newPots;
+                
+                const resolvedPots = currentPots;
 
                 const nextPhase =
                     prev.phase === GamePhase.PRE_FLOP ? GamePhase.FLOP :
@@ -627,13 +701,9 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     const isHandComplete = gameState.activePlayerId === null && !gameState.isRunningOut && gameState.winningHand !== null;
     const isHumanBusted = humanPlayer && humanPlayer.chips <= 0 && isHandComplete;
 
-    const activeAiCount = aiPlayers.filter(p => p.chips > 0).length;
-    const isTournamentWon = activeAiCount === 0 && (humanPlayer && humanPlayer.chips > 0) && isHandComplete;
-
     let gameStatus: 'active' | 'complete' | 'won' | 'busted' = 'active';
     if (isHandComplete) {
-        if (isTournamentWon) gameStatus = 'won';
-        else if (isHumanBusted) gameStatus = 'busted';
+        if (isHumanBusted) gameStatus = 'busted';
         else gameStatus = 'complete';
     }
 
@@ -684,6 +754,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             <div className="w-full grow flex flex-col justify-center animate-zoom-fade-in z-10" style={{ animationDelay: '0.3s' }}>
                 <TableStratum
                     pot={gameState.pot}
+                    pots={gameState.pots}
+                    players={gameState.players}
                     board={gameState.board}
                     phase={gameState.phase}
                     winningHand={gameState.winningHand}

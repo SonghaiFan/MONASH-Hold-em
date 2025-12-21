@@ -73,6 +73,50 @@ export const generateDeck = (): Card[] => {
   return deck;
 };
 
+const getPlayStyleForLevel = (blindBig: number): PlayStyle => {
+  const rand = Math.random();
+
+  // Level 1: Footscray (BB 2) - Fishy
+  // Mostly Loose-Passive (Calling Stations) and some Maniacs (LAG)
+  if (blindBig <= 2) {
+    if (rand < 0.4) return "LP";
+    if (rand < 0.6) return "TP";
+    if (rand < 0.9) return "LAG";
+    return "TAG";
+  }
+
+  // Level 2: Box Hill (BB 10)
+  if (blindBig <= 10) {
+    if (rand < 0.3) return "LP";
+    if (rand < 0.5) return "TP";
+    if (rand < 0.8) return "LAG";
+    return "TAG";
+  }
+
+  // Level 3: Glen Waverley (BB 100)
+  if (blindBig <= 100) {
+    if (rand < 0.2) return "LP";
+    if (rand < 0.4) return "TP";
+    if (rand < 0.7) return "LAG";
+    return "TAG";
+  }
+
+  // Level 4: Balwyn (BB 1000)
+  if (blindBig <= 1000) {
+    if (rand < 0.1) return "LP";
+    if (rand < 0.2) return "TP";
+    if (rand < 0.5) return "LAG";
+    return "TAG";
+  }
+
+  // Level 5: Toorak (BB 5000+) - Shark Tank
+  // Mostly TAG (Solid) and LAG (Tricky)
+  if (rand < 0.05) return "LP"; // The occasional whale
+  if (rand < 0.1) return "TP";
+  if (rand < 0.4) return "LAG";
+  return "TAG";
+};
+
 // Generates the initial table state with players
 export const initializeGame = (
   config: GameConfig = DEFAULT_CONFIG
@@ -88,8 +132,8 @@ export const initializeGame = (
       config.startingStackAI * 0.1;
     const chips = Math.max(100, Math.floor(config.startingStackAI + variance));
 
-    // Assign random play style
-    const playStyle = AI_STYLES[Math.floor(Math.random() * AI_STYLES.length)];
+    // Assign play style based on level (Blind Size)
+    const playStyle = getPlayStyleForLevel(config.blindBig);
 
     aiPlayers.push({
       id: `cpu-${i + 1}`,

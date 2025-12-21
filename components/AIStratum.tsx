@@ -98,7 +98,9 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                         const shouldReveal =
                             (phase === GamePhase.SHOWDOWN && p.isActive && !humanHasFolded) ||
                             isPeeked;
-                        const isWinner = winningHand?.playerId === p.id;
+                        const isWinner = winningHand?.winnerIds
+                            ? winningHand.winnerIds.includes(p.id)
+                            : winningHand?.playerId === p.id;
 
                         const isFocal = winningHand
                             ? winningHand.focalPlayerId === p.id

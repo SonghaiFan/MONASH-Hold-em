@@ -38,6 +38,7 @@ export interface PayoutResult {
   winningCardIds: string[];
   potDescription: string;
   potKind: "MAIN" | "SIDE";
+  potId: string;
 }
 
 export interface WinnerResult {
@@ -296,6 +297,7 @@ export const determineWinner = (
         winningCardIds: t.handRank.winningCardIds,
         potDescription: description,
         potKind: pot.kind,
+        potId: pot.id,
       });
     });
   });

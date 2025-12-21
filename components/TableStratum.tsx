@@ -1,11 +1,13 @@
 import React from "react";
-import { Card, GamePhase, WinningHand } from "../types";
+import { Card, GamePhase, WinningHand, Pot, Player } from "../types";
 import { PlayingCard } from "./PlayingCard";
 import { ChipStack } from "./ChipStack";
 import { formatChips } from '../utils';
 
 interface TableStratumProps {
   pot: number;
+  pots?: Pot[];
+  players: Player[];
   board: Card[];
   phase: GamePhase;
   winningHand: WinningHand | null;
@@ -13,6 +15,8 @@ interface TableStratumProps {
 
 export const TableStratum: React.FC<TableStratumProps> = ({
   pot,
+  pots = [],
+  players,
   board,
   phase,
   winningHand,
@@ -83,13 +87,62 @@ export const TableStratum: React.FC<TableStratumProps> = ({
       </div>
 
       {/* Pot Value Display */}
-      <div className="absolute top-[10%] flex flex-col items-center mb-2 md:mb-6 transform transition-transform duration-500 z-10">
-        <span className="font-sans text-[0.6rem] md:text-[1rem] tracking-[0.2em] text-[#888] uppercase mb-1">
-          Total Pot
-        </span>
-        <span className="font-mono text-3xl md:text-6xl text-white tracking-tight leading-none drop-shadow-xl">
-          ${formatChips(pot)}
-        </span>
+      <div className="absolute top-[10%] flex items-center gap-4 md:gap-6 mb-2 md:mb-6 transform transition-transform duration-500 z-10">
+        <div className="flex flex-col items-center">
+          <span className="font-sans text-[0.6rem] md:text-[1rem] tracking-[0.2em] text-[#888] uppercase mb-1">
+            Total Pot
+          </span>
+          <span className="font-mono text-3xl md:text-6xl text-white tracking-tight leading-none drop-shadow-xl">
+            ${formatChips(pot)}
+          </span>
+        </div>
+
+        {pots.length > 1 && (
+          <div className="hidden md:flex flex-col items-start gap-1 border-l border-white/10 pl-4 py-1">
+            {pots.map((p, i) => {
+              const eligiblePositions = p.eligiblePlayerIds
+                .map((id) => {
+                  const player = players.find((pl) => pl.id === id);
+                  const isWinner = p.winners?.includes(id);
+                  return (
+                    <span
+                      key={id}
+                      className={isWinner ? "text-[#d4af37] font-bold" : ""}
+                    >
+                      {player?.position}
+                    </span>
+                  );
+                })
+                .reduce((prev, curr, idx) => {
+                  if (idx === 0) return [curr];
+                  return [...prev, ", ", curr];
+                }, [] as React.ReactNode[]);
+
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-2 text-[0.6rem] md:text-xs font-mono text-white/80 bg-black/40 px-3 py-1 rounded-full border backdrop-blur-sm whitespace-nowrap transition-colors duration-300 ${
+                    p.winners && p.winners.length > 0
+                      ? "border-[#d4af37]/50 shadow-[0_0_10px_rgba(212,175,55,0.1)]"
+                      : "border-white/10"
+                  }`}
+                >
+                  <span className="font-sans text-white ">
+                    {p.kind === "MAIN" ? "Main" : `Side ${i}`}
+                  </span>
+                  <div className="w-px h-3 bg-white/20 mx-1" />
+                  <span className="text-white font-bold">
+                    ${formatChips(p.amount)}
+                  </span>
+                  <div className="w-px h-3 bg-white/20 mx-1" />
+                  <span className="text-white/50 tracking-tight flex gap-1">
+                    {eligiblePositions}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Unified Card Container */}

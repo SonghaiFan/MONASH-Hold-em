@@ -201,7 +201,8 @@ TAG STRATEGY FRAMEWORK
 - **Fold Weakness**: Fold easily to 3-bets with marginal hands.
 
 2. POSTFLOP AGGRESSION (AGGRESSIVE)
-- **C-Bet Value**: C-bet for value when you hit. Check back medium strength hands for pot control.
+- **Bet or Fold**: Avoid checking. If you have a hand, bet it. If you don't, fold.
+- **C-Bet Value**: C-bet for value when you hit.
 - **Protect Equity**: Bet strong to protect against draws. Do not slow play unless the board is crushed.
 - **Fold to Resistance**: If a tight opponent raises, respect it and fold one-pair hands.
 
@@ -210,8 +211,8 @@ TAG STRATEGY FRAMEWORK
 - **Semi-Bluff**: Raise with nut flush draws or open-ended straight draws, but prefer calling with weaker draws.
 
 4. POSITIONAL AWARENESS
-- **In Position (IP)**: Bet for value. Check back to realize equity with marginal hands.
-- **Out of Position (OOP)**: Play very tight. Check-fold weak hands. Check-call strong draws.
+- **In Position (IP)**: Bet for value.
+- **Out of Position (OOP)**: Play very tight. Check-fold weak hands.
 
 5. POT ODDS & EQUITY
 - Calculate odds precisely. Do not chase bad draws.

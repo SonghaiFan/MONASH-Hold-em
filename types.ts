@@ -57,6 +57,7 @@ export interface Pot {
 
 export interface WinningHand {
   playerId: string;
+  winnerIds?: string[]; // For split pots
   cardIds: string[];
   description: string;
   focalPlayerId?: string; // ID of the player to highlight/scroll to (e.g., runner-up if human wins)

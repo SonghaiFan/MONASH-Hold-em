@@ -73,6 +73,10 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
     Math.min(maxRaiseTotal, potRaiseTotal)
   );
 
+  const isWinner = winningHand?.winnerIds
+    ? winningHand.winnerIds.includes(player.id)
+    : winningHand?.playerId === player.id;
+
   useEffect(() => {
     if (!canAct) setIsRaising(false);
   }, [canAct]);
@@ -274,6 +278,11 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
             ${
               canAct && gameStatus === "active"
                 ? "shadow-[0_-5px_30px_rgba(255,255,255,0.05)] bg-black/30"
+                : ""
+            }
+            ${
+              isWinner
+                ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_-5px_30px_rgba(212,175,55,0.15)]"
                 : ""
             }
         `}
