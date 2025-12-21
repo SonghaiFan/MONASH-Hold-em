@@ -355,7 +355,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
               transform:
                 idx === 0
                   ? "rotate(-3deg) translateY(0.5em)"
-                  : "rotate(3deg) translateY(0.5em)",
+                  : "rotate(3deg) translateY(0.5em) translateX(-2em)",
             }}
           />
         ))}

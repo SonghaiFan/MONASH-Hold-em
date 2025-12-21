@@ -237,7 +237,9 @@ export const determineWinner = (
   const playerEvaluations = new Map<string, EvaluatedHand>();
 
   activePlayers.forEach((p) => {
-    const pool = [...p.hand, ...board];
+    // Prioritize board cards in the pool so that if there's a tie (e.g. playing the board),
+    // the evaluator picks the board cards first, avoiding confusing highlighting of hand cards.
+    const pool = [...board, ...p.hand];
     playerEvaluations.set(p.id, {
       player: p,
       handRank: evaluateHand(pool),
