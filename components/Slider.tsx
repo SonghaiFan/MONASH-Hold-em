@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { formatChips } from '../utils';
 
 interface SliderProps {
     min: number;
@@ -124,8 +125,8 @@ export const Slider: React.FC<SliderProps> = ({
                     className="absolute h-3 w-[2px] bg-white/50 top-1.5 pointer-events-none z-0"
                     style={{ left: `${markerPosition}%` }}
                 >
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[0.5rem] text-white/40 font-mono tracking-wider">
-                        POT
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[0.5rem] text-white/40 font-mono tracking-wider whitespace-nowrap">
+                        POT (${formatChips(markerValue!)})
                     </div>
                 </div>
             )}

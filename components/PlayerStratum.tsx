@@ -5,6 +5,7 @@ import { ChipStack } from "./ChipStack";
 import { ActionButton } from "./ActionButton";
 import { Slider } from "./Slider";
 import { AnimatedCounter } from "./AnimatedCounter";
+import { formatChips } from "../utils";
 
 interface PlayerStratumProps {
   player: Player;
@@ -173,7 +174,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
               </span>
               <div className="flex flex-col items-end">
                 <span className="font-mono text-2xl md:text-3xl text-[#d4af37] tracking-tight leading-none">
-                  ${raiseAmount.toLocaleString()}
+                  ${formatChips(raiseAmount)}
                 </span>
                 {raiseAmount >= maxRaiseTotal && (
                   <span className="text-[0.6rem] text-[#d9534f] font-bold uppercase tracking-widest mt-1">
@@ -193,8 +194,8 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
                 markerValue={safePotMarker}
               />
               <div className="flex justify-between text-[0.6rem] md:text-[0.65rem] font-mono text-[#777] mt-3">
-                <span>Min: ${safeMin.toLocaleString()}</span>
-                <span>Max: ${maxRaiseTotal.toLocaleString()}</span>
+                <span>Min: ${formatChips(safeMin)}</span>
+                <span>Max: ${formatChips(maxRaiseTotal)}</span>
               </div>
             </div>
 
@@ -252,7 +253,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
                   <span className="inline-flex items-center gap-2">
                     <span>CALL</span>
                     <span className="font-mono text-base md:text-lg">
-                      ${toCall.toLocaleString()}
+                      ${formatChips(toCall)}
                     </span>
                   </span>
                 ) : (

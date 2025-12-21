@@ -2,6 +2,7 @@ import React from "react";
 import { Card, GamePhase, WinningHand } from "../types";
 import { PlayingCard } from "./PlayingCard";
 import { ChipStack } from "./ChipStack";
+import { formatChips } from '../utils';
 
 interface TableStratumProps {
   pot: number;
@@ -87,7 +88,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({
           Total Pot
         </span>
         <span className="font-mono text-3xl md:text-6xl text-white tracking-tight leading-none drop-shadow-xl">
-          ${pot.toLocaleString()}
+          ${formatChips(pot)}
         </span>
       </div>
 

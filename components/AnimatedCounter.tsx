@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { formatChips } from '../utils';
 
 interface AnimatedCounterProps {
     value: number;
@@ -109,7 +110,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
                 transformOrigin: 'center center'
             }}
         >
-            {prefix}{displayValue.toLocaleString()}
+            {prefix}{isAnimating ? displayValue.toLocaleString() : formatChips(displayValue)}
         </span>
     );
 };

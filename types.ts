@@ -22,6 +22,8 @@ export type PlayerAction =
   | "ALL-IN"
   | "ELIMINATED";
 
+export type PlayStyle = "LAG" | "TAG" | "LP" | "TP"; // Loose-Aggressive, Tight-Aggressive, Loose-Passive, Tight-Passive
+
 export interface Player {
   id: string;
   name: string;
@@ -34,6 +36,7 @@ export interface Player {
   isActive: boolean; // True if in the hand (not folded)
   currentBet: number; // Amount contributed in current street
   reasoningHistory?: string[]; // AI's internal thought process history
+  playStyle?: PlayStyle; // AI Personality
 }
 
 export enum GamePhase {

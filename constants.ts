@@ -1,4 +1,12 @@
-import { Card, GameState, Player, GamePhase, Suit, GameConfig } from "./types";
+import {
+  Card,
+  GameState,
+  Player,
+  GamePhase,
+  Suit,
+  GameConfig,
+  PlayStyle,
+} from "./types";
 
 export const INITIAL_STACK_HUMAN = 10000;
 export const INITIAL_STACK_AI_AVG = 5000;
@@ -35,6 +43,8 @@ export const AI_NAMES = [
   "Oliver",
   "Felix",
 ];
+
+export const AI_STYLES: PlayStyle[] = ["LAG", "TAG", "LP", "TP"];
 
 export const DEFAULT_CONFIG: GameConfig = {
   playerName: "Player",
@@ -78,6 +88,9 @@ export const initializeGame = (
       config.startingStackAI * 0.1;
     const chips = Math.max(100, Math.floor(config.startingStackAI + variance));
 
+    // Assign random play style
+    const playStyle = AI_STYLES[Math.floor(Math.random() * AI_STYLES.length)];
+
     aiPlayers.push({
       id: `cpu-${i + 1}`,
       name,
@@ -89,6 +102,7 @@ export const initializeGame = (
       isDealer: false,
       isActive: true,
       currentBet: 0,
+      playStyle,
     });
   }
 

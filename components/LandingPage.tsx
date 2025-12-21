@@ -3,6 +3,8 @@ import { DEFAULT_CONFIG } from "../constants";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 
+import { formatChips } from "../utils";
+
 interface LandingPageProps {
   onStartGame: (config: GameConfig) => void;
   username: string | null;
@@ -185,7 +187,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                             Buy-In
                           </span>
                           <span className="font-mono text-xl font-bold tracking-tighter">
-                            ${level.buyIn.toLocaleString()}
+                            ${formatChips(level.buyIn)}
                           </span>
                         </div>
                         <div className="flex justify-between items-end">
