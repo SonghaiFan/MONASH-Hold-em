@@ -19,7 +19,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
         } else if (username.length > 2) {
             setSystemStatus('• IDENTITY DETECTED');
         } else if (username.length > 0) {
-             setSystemStatus('• ANALYZING...');
+            setSystemStatus('• ANALYZING...');
         } else {
             setSystemStatus('• AWAITING INPUT');
         }
@@ -31,7 +31,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
         setIsLoading(true);
         // Simulate a brief "system check" delay for effect
         setTimeout(() => {
-             onLogin(username);
+            onLogin(username);
         }, 800);
     };
 
@@ -42,7 +42,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
             ${isExiting ? 'opacity-0 scale-95 blur-sm -translate-y-4' : 'opacity-100 scale-100 translate-y-0'}
         `}>
             {/* Cyber Grid Background */}
-            <div 
+            <div
                 className="absolute inset-0 pointer-events-none opacity-[0.03]"
                 style={{
                     backgroundImage: `linear-gradient(to right, #808080 1px, transparent 1px),
@@ -54,13 +54,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
 
             {/* 3D Background Cards */}
             <div className="absolute inset-0 pointer-events-none perspective-1000 z-0">
-                
+
 
                 {/* Top Right */}
                 <div className="absolute top-[10%] -right-[15%] md:right-[10%] opacity-[0.2] animate-[float-3d-reverse_18s_ease-in-out_infinite]">
                     <div className="transform -rotate-[15deg] scale-90">
-                         <PlayingCard 
-                            card={{ rank: 'K', suit: Suit.Spades, id: 'bg-jack' }} 
+                        <PlayingCard
+                            card={{ rank: 'K', suit: Suit.Spades, id: 'bg-jack' }}
                             size={26}
                             className="shadow-2xl"
                         />
@@ -70,8 +70,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                 {/* Bottom Foreground */}
                 <div className="absolute bottom-[-5%] left-[10%] md:left-[20%] opacity-[0.25] animate-[float-3d-slow_12s_ease-in-out_infinite_reverse]">
                     <div className="transform rotate-[30deg] scale-110">
-                        <PlayingCard 
-                            card={{ rank: 'A', suit: Suit.Hearts, id: 'bg-ace-h' }} 
+                        <PlayingCard
+                            card={{ rank: 'A', suit: Suit.Hearts, id: 'bg-ace-h' }}
                             size={32} // Largest
                             className="shadow-2xl"
                         />
@@ -81,10 +81,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-12 max-w-md w-full">
-                
+
                 {/* Logo / Title Area */}
                 <div className="flex flex-col items-center gap-4 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    
+
                     <div className="relative">
                         <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 mb-2 font-sans drop-shadow-2xl">
                             MONASH
@@ -102,7 +102,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                 <form onSubmit={handleEnter} className="w-full flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
                     <div className="group relative">
                         <div className="absolute -inset-4 bg-gradient-to-r from-transparent via-white/5 to-transparent rounded-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 blur-md" />
-                        
+
                         <input
                             type="text"
                             value={username}
@@ -122,9 +122,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                     </div>
 
                     <div className="flex flex-col gap-4">
-                        <ActionButton 
+                        <ActionButton
                             type="submit"
-                            variant="gold" 
+                            variant="gold"
                             disabled={isLoading || !username.trim()}
                             className="w-full tracking-[0.2em] text-xs py-5 shadow-[0_0_30px_rgba(212,175,55,0.1)] hover:shadow-[0_0_50px_rgba(212,175,55,0.2)]"
                         >
@@ -141,9 +141,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
 
                 {/* Footer Status */}
                 <div className="text-[0.6rem] text-white/20 font-mono tracking-widest uppercase animate-in fade-in duration-1000 delay-500 flex gap-4 border-t border-white/5 pt-4">
-                    <span>Sys v2.4.0</span>
+                    <span>Sys v1.0.0</span>
                     <span>•</span>
-                    <span>Secure Connection</span>
+                    <span>Made by 范不着Frank</span>
                 </div>
             </div>
         </div>

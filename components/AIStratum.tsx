@@ -246,7 +246,7 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                                     </div>
 
                                     <div
-                                        className={`relative h-[50px] w-full flex justify-center items-start -mt-2 pt-0 md:mt-16 md:pt-2 ${shouldReveal ? "z-20" : "z-1"
+                                        className={`relative h-[50px] w-full flex justify-center items-start -mt-2 pt-0 md:mt-14 md:pt-2 ${shouldReveal ? "z-20" : "z-1"
                                             }`}
                                     >
                                         {!isEliminated && (
