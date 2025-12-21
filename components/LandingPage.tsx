@@ -9,7 +9,7 @@ interface LandingPageProps {
   isExiting?: boolean;
 }
 
-interface TournamentLevel {
+interface GameLevel {
   id: string;
   name: string;
   sub: string;
@@ -18,7 +18,7 @@ interface TournamentLevel {
   desc: string;
 }
 
-const LEVELS: TournamentLevel[] = [
+const LEVELS: GameLevel[] = [
   {
     id: "footscray",
     name: "FOOTSCRAY COURTS",
@@ -49,7 +49,7 @@ const LEVELS: TournamentLevel[] = [
     sub: "Blue-Chip East",
     buyIn: 100000,
     blindBig: 1000,
-    desc: "Old Money Territory",
+    desc: "Old Money",
   },
   {
     id: "toorak",
@@ -103,11 +103,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       className={`
             w-full h-full overflow-y-auto overflow-x-hidden relative z-20
             transition-all duration-700 ease-[cubic-bezier(0.64,0,0.78,0)]
-            ${
-              isExiting
-                ? "-translate-y-8 opacity-0 blur-md"
-                : "translate-y-0 opacity-100 blur-0"
-            }
+            ${isExiting
+          ? "-translate-y-8 opacity-0 blur-md"
+          : "translate-y-0 opacity-100 blur-0"
+        }
         `}
     >
       {/* Background elements */}
@@ -154,26 +153,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       className={`
                                                 relative w-[240px] md:w-[260px] p-6 rounded-2xl border text-left flex flex-col gap-4
                                                 transition-all duration-300 snap-center group
-                                                ${
-                                                  isActive
-                                                    ? "bg-[#d4af37] border-[#d4af37] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] scale-100"
-                                                    : "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
-                                                }
+                                                ${isActive
+                          ? "bg-[#d4af37] border-[#d4af37] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] scale-100"
+                          : "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
+                        }
                                             `}
                     >
                       <div className="flex justify-between items-start w-full">
                         <div className="flex flex-col">
                           <span
-                            className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${
-                              isActive ? "text-black/60" : "text-gray-500"
-                            }`}
+                            className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${isActive ? "text-black/60" : "text-gray-500"
+                              }`}
                           >
                             {level.sub}
                           </span>
                           <span
-                            className={`text-lg font-bold font-sans tracking-tight leading-none ${
-                              isActive ? "text-black" : "text-white"
-                            }`}
+                            className={`text-lg font-bold font-sans tracking-tight leading-none ${isActive ? "text-black" : "text-white"
+                              }`}
                           >
                             {level.name}
                           </span>
@@ -203,11 +199,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       </div>
 
                       <div
-                        className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[0.5rem] uppercase tracking-widest font-bold shadow-sm ${
-                          isActive
-                            ? "bg-black text-[#d4af37]"
-                            : "bg-[#222] text-gray-500"
-                        }`}
+                        className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[0.5rem] uppercase tracking-widest font-bold shadow-sm ${isActive
+                          ? "bg-black text-[#d4af37]"
+                          : "bg-[#222] text-gray-500"
+                          }`}
                       >
                         {level.desc}
                       </div>
@@ -247,44 +242,39 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     onClick={() => handleOpponentChange(size.opponents)}
                     className={`
                                             relative flex flex-col items-center justify-center py-4 md:py-6 px-2 rounded-xl border transition-all duration-300 group
-                                            ${
-                                              isSelected
-                                                ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
-                                                : "bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/20"
-                                            }
+                                            ${isSelected
+                        ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
+                        : "bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/20"
+                      }
                                         `}
                   >
                     <div className="flex items-baseline gap-1 mb-1">
                       <span
-                        className={`text-2xl md:text-3xl font-mono font-bold tracking-tighter ${
-                          isSelected
-                            ? "text-[#d4af37]"
-                            : "text-white/40 group-hover:text-white/60"
-                        }`}
+                        className={`text-2xl md:text-3xl font-mono font-bold tracking-tighter ${isSelected
+                          ? "text-[#d4af37]"
+                          : "text-white/40 group-hover:text-white/60"
+                          }`}
                       >
                         {size.total}
                       </span>
                       <span
-                        className={`text-[0.6rem] font-bold uppercase ${
-                          isSelected ? "text-[#d4af37]/80" : "text-white/20"
-                        }`}
+                        className={`text-[0.6rem] font-bold uppercase ${isSelected ? "text-[#d4af37]/80" : "text-white/20"
+                          }`}
                       >
                         PLAYER
                       </span>
                     </div>
 
                     <span
-                      className={`text-[0.55rem] uppercase tracking-[0.2em] font-bold mb-1 ${
-                        isSelected ? "text-white" : "text-white/30"
-                      }`}
+                      className={`text-[0.55rem] uppercase tracking-[0.2em] font-bold mb-1 ${isSelected ? "text-white" : "text-white/30"
+                        }`}
                     >
                       {size.label}
                     </span>
 
                     <span
-                      className={`text-[0.5rem] font-mono ${
-                        isSelected ? "text-[#d4af37]/60" : "text-white/20"
-                      }`}
+                      className={`text-[0.5rem] font-mono ${isSelected ? "text-[#d4af37]/60" : "text-white/20"
+                        }`}
                     >
                       {size.desc}
                     </span>
