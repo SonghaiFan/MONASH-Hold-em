@@ -4,7 +4,7 @@ import { TableStratum } from './TableStratum';
 import { PlayerStratum } from './PlayerStratum';
 import { generateDeck, initializeGame } from '../constants';
 import { GamePhase, GameState, PlayerAction, GameConfig } from '../types';
-import { getAIDecision } from '../services/pokerAi';
+import { getAIDecision } from "@/services/pokerAi";
 import { determineWinner } from '../services/pokerEvaluator';
 import { ActionButton } from './ActionButton';
 import { formatChips } from '../utils';
@@ -260,7 +260,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     useEffect(() => {
         if (gameState.phase === GamePhase.SHOWDOWN && !gameState.winningHand) {
             const result = determineWinner(gameState.players, gameState.board, gameState.pots);
-            
+
             setGameState(prev => {
                 let focalId = result.primaryWinnerId;
                 const isHumanWinner = result.primaryWinnerId === prev.players.find(p => p.isHuman)?.id;
@@ -303,7 +303,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     // 2b. SHOWDOWN: Delayed Payout (Chip Update)
     useEffect(() => {
         if (gameState.phase === GamePhase.SHOWDOWN && gameState.winningHand && gameState.pot > 0) {
-            
+
             const result = determineWinner(gameState.players, gameState.board, gameState.pots);
             const activePlayers = gameState.players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
             const playerCount = activePlayers.length;
@@ -498,7 +498,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             if (isRoundComplete) {
                 // --- RESOLVE POTS (Side Pot Logic) ---
                 let currentPots = [...prev.pots];
-                
+
                 // 1. Collect all active bets
                 const activeBets = players.map(p => ({
                     id: p.id,
@@ -509,7 +509,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                 if (activeBets.length > 0) {
                     // 2. Sort unique bet amounts (levels)
                     const levels = Array.from(new Set(activeBets.map(b => b.amount))).sort((a, b) => a - b);
-                    
+
                     let prevLevel = 0;
 
                     levels.forEach(level => {
@@ -535,7 +535,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                             // Note: We compare sorted JSON strings for simple array equality check.
                             const lastEligible = lastPot ? [...lastPot.eligiblePlayerIds].sort() : [];
                             const currentEligible = [...contributors].sort();
-                            
+
                             const isSameEligible = lastPot && JSON.stringify(lastEligible) === JSON.stringify(currentEligible);
 
                             if (isSameEligible && lastPot) {
@@ -549,7 +549,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                                 // (Or we could return it here, but that requires mutating player chips which is complex in this block).
                                 // Actually, standard side pot logic: If I bet 100 and opponent all-in for 10, 
                                 // I have a side pot of 90 with only me eligible. I win it immediately.
-                                
+
                                 currentPots.push({
                                     id: `pot-${Date.now()}-${level}`,
                                     amount: potChunk,
@@ -561,7 +561,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                         prevLevel = level;
                     });
                 }
-                
+
                 const resolvedPots = currentPots;
 
                 const nextPhase =
