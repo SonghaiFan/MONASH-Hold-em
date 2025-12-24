@@ -6,6 +6,7 @@ import { ActionButton } from "./ActionButton";
 import { Slider } from "./Slider";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { formatChips } from "../utils";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface PlayerStratumProps {
   player: Player;
@@ -36,6 +37,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
   bigBlind,
   phase,
 }) => {
+  const { t } = useLanguage();
   const [isRaising, setIsRaising] = useState(false);
   const [raiseAmount, setRaiseAmount] = useState(0);
 
@@ -124,13 +126,13 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
   const showControls = canAct || gameStatus !== "active";
 
   // Determine label for the bet
-  let betLabel = "Current Bet";
+  let betLabel = t('game.current_bet');
   if (
     phase === GamePhase.PRE_FLOP &&
     player.status === "WAITING" &&
     player.currentBet > 0
   ) {
-    betLabel = "Blind Posted";
+    betLabel = t('game.blind_posted');
   }
 
   const renderControls = () => {
@@ -142,7 +144,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
             variant="neutral"
             className="w-full"
           >
-            Next Hand
+            {t('game.next_hand')}
           </ActionButton>
         </div>
       );
@@ -152,7 +154,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
       return (
         <div className="w-full max-w-[600px] mx-auto animate-in slide-in-from-bottom-4 duration-300">
           <ActionButton onClick={onRebuy} variant="red" className="w-full">
-            Rebuy Stack
+            {t('game.rebuy')}
           </ActionButton>
         </div>
       );
@@ -162,7 +164,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
       return (
         <div className="w-full max-w-[600px] mx-auto animate-in slide-in-from-bottom-4 duration-300">
           <ActionButton onClick={onRestart} variant="gold" className="w-full">
-            Victory - Play Again
+            {t('game.victory')}
           </ActionButton>
         </div>
       );
@@ -174,7 +176,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
           <div className="absolute bottom-[calc(100%+10px)] md:bottom-[calc(100%+20px)] left-0 w-full bg-black/90 backdrop-blur-xl border border-white/10 p-4 md:p-6 rounded-2xl md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-200 z-30 flex flex-col gap-3 md:gap-6">
             <div className="flex justify-between items-end border-b border-white/10 pb-2 md:pb-4">
               <span className="font-sans text-[#a3a3a3] text-xs md:text-sm uppercase tracking-wide">
-                Raise Amount
+                {t('game.raise_amount')}
               </span>
               <div className="flex flex-col items-end">
                 <span className="font-mono text-2xl md:text-3xl text-[#d4af37] tracking-tight leading-none">
@@ -218,10 +220,12 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
                                     `}
                 >
                   {type === "all"
-                    ? "All-In"
+                    ? t('game.all_in')
                     : type === "1/2"
-                    ? "1/2 Pot"
-                    : type}
+                    ? t('game.half_pot')
+                    : type === "pot"
+                    ? t('game.pot')
+                    : t('game.min')}
                 </button>
               ))}
             </div>
@@ -236,32 +240,32 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
                 variant="neutral"
                 className="col-span-1"
               >
-                Cancel
+                {t('game.cancel')}
               </ActionButton>
               <ActionButton
                 onClick={handleConfirmRaise}
                 variant="gold"
                 className="col-span-2"
               >
-                Confirm Raise
+                {t('game.confirm')}
               </ActionButton>
             </>
           ) : (
             <>
               <ActionButton onClick={() => onAction("fold")} variant="red">
-                Fold
+                {t('game.fold')}
               </ActionButton>
 
               <ActionButton onClick={() => onAction("call")} variant="green">
                 {toCall > 0 ? (
-                  "CALL"
+                  t('game.call')
                 ) : (
-                  "CHECK"
+                  t('game.check')
                 )}
               </ActionButton>
 
               <ActionButton onClick={() => setIsRaising(true)} variant="gold">
-                Raise
+                {t('game.raise')}
               </ActionButton>
             </>
           )}

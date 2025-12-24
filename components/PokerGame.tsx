@@ -8,6 +8,7 @@ import { getAIDecision } from "@/services/pokerAi";
 import { determineWinner } from '../services/pokerEvaluator';
 import { ActionButton } from './ActionButton';
 import { formatChips } from '../utils';
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface PokerGameProps {
     config: GameConfig;
@@ -15,6 +16,7 @@ interface PokerGameProps {
 }
 
 export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
+    const { t } = useLanguage();
     // Centralized Game State
     const [gameState, setGameState] = useState<GameState>(() => initializeGame(config));
 
@@ -707,14 +709,14 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         else gameStatus = 'complete';
     }
 
-    if (!humanPlayer) return <div>Loading System...</div>;
+    if (!humanPlayer) return <div>{t('game.loading')}</div>;
 
     return (
         <div className="flex flex-col h-full w-full z-10 overflow-hidden relative">
             <button
                 onClick={onExit}
                 className="absolute top-4 left-4 z-50 p-2 rounded-full bg-black/40 text-white/30 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md"
-                title="Exit Game"
+                title={t('game.exit')}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
             </button>
@@ -725,14 +727,14 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     <div className="flex flex-col items-center gap-4 md:gap-6 p-4 md:p-8 relative">
                         <div className="absolute inset-0 bg-[#d4af37]/5 blur-3xl rounded-full" />
                         <div className="text-base md:text-2xl font-light tracking-widest text-white font-sans uppercase relative z-10 text-center">
-                            Table Initialized
+                            {t('game.table_initialized')}
                         </div>
                         <ActionButton
                             onClick={handleStartGame}
                             variant="gold"
                             className="px-8 py-4 md:px-12 md:py-6 text-xs md:text-lg tracking-[0.2em] md:tracking-[0.3em] relative z-10 shadow-[0_0_30px_rgba(212,175,55,0.2)] md:shadow-[0_0_50px_rgba(212,175,55,0.3)] hover:shadow-[0_0_70px_rgba(212,175,55,0.5)]"
                         >
-                            I'M READY
+                            {t('game.im_ready')}
                         </ActionButton>
                     </div>
                 </div>

@@ -3,6 +3,7 @@ import { Card, GamePhase, WinningHand, Pot, Player } from "../types";
 import { PlayingCard } from "./PlayingCard";
 import { ChipStack } from "./ChipStack";
 import { formatChips } from '../utils';
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface TableStratumProps {
   pot: number;
@@ -21,6 +22,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({
   phase,
   winningHand,
 }) => {
+  const { t } = useLanguage();
   const visibleCardsCount =
     phase === GamePhase.PRE_FLOP
       ? 0
@@ -90,7 +92,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({
       <div className="absolute top-[10%] flex items-center gap-4 md:gap-6 mb-2 md:mb-6 transform transition-transform duration-500 z-10">
         <div className="flex flex-col items-center">
           <span className="font-sans text-[0.6rem] md:text-[1rem] tracking-[0.2em] text-[#888] uppercase mb-1">
-            Total Pot
+            {t('game.total_pot')}
           </span>
           <span className="font-mono text-3xl md:text-6xl text-white tracking-tight leading-none drop-shadow-xl">
             ${formatChips(pot)}
@@ -128,7 +130,7 @@ export const TableStratum: React.FC<TableStratumProps> = ({
                   }`}
                 >
                   <span className="font-sans text-white ">
-                    {p.kind === "MAIN" ? "Main" : `Side ${i}`}
+                    {p.kind === "MAIN" ? t('game.main_pot') : `${t('game.side_pot')} ${i}`}
                   </span>
                   <div className="w-px h-3 bg-white/20 mx-1" />
                   <span className="text-white font-bold">

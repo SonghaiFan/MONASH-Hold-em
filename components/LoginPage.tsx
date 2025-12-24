@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ActionButton } from './ActionButton';
 import { PlayingCard } from './PlayingCard';
 import { Suit } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LoginPageProps {
     onLogin: (username: string) => void;
@@ -9,21 +10,22 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
-    const [username, setUsername] = useState('');
+    const { t } = useLanguage();
+    const [username, setUsername] = useState('Noboody');
     const [isLoading, setIsLoading] = useState(false);
-    const [systemStatus, setSystemStatus] = useState('• AWAITING INPUT');
+    const [systemStatus, setSystemStatus] = useState(t('system.awaiting'));
 
     useEffect(() => {
         if (isLoading) {
-            setSystemStatus('• AUTHENTICATING...');
+            setSystemStatus(t('system.authenticating'));
         } else if (username.length > 2) {
-            setSystemStatus('• IDENTITY DETECTED');
+            setSystemStatus(t('system.identity_detected'));
         } else if (username.length > 0) {
-            setSystemStatus('• ANALYZING...');
+            setSystemStatus(t('system.analyzing'));
         } else {
-            setSystemStatus('• AWAITING INPUT');
+            setSystemStatus(t('system.awaiting'));
         }
-    }, [username, isLoading]);
+    }, [username, isLoading, t]);
 
     const handleEnter = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -87,12 +89,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
 
                     <div className="relative">
                         <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 mb-2 font-sans drop-shadow-2xl">
-                            MONASH
+                            {t('app.title')}
                         </h1>
                         <div className="absolute -inset-1 blur-xl bg-white/10 rounded-full opacity-0 animate-pulse delay-1000" />
                         <h2 className="text-[#d4af37] font-mono tracking-[0.5em] text-xs md:text-sm uppercase pl-1 drop-shadow-lg flex items-center justify-center gap-2">
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
-                            Hold'em Protocol
+                            {t('app.subtitle')}
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
                         </h2>
                     </div>
@@ -107,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="ENTER CALLSIGN"
+                            placeholder={t('login.placeholder')}
                             className="
                                 relative z-10 w-full bg-transparent border-b border-white/10 py-4
                                 font-mono text-center text-xl text-white placeholder:text-white/20
@@ -128,7 +130,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                             disabled={isLoading || !username.trim()}
                             className="w-full tracking-[0.2em] text-xs py-5 shadow-[0_0_30px_rgba(212,175,55,0.1)] hover:shadow-[0_0_50px_rgba(212,175,55,0.2)]"
                         >
-                            {isLoading ? 'INITIALIZING...' : 'ESTABLISH LINK'}
+                            {isLoading ? t('login.initializing') : t('login.enter')}
                         </ActionButton>
 
                         <div className="h-4 flex items-center justify-center">

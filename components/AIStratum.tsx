@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { GamePhase, Player, WinningHand } from "../types";
 import { PlayingCard } from "./PlayingCard";
 import { AnimatedCounter } from "./AnimatedCounter";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface AIStratumProps {
     players: Player[];
@@ -20,6 +21,7 @@ export const AIStratum: React.FC<AIStratumProps> = ({
     winningHand,
     aiIntent,
 }) => {
+    const { t } = useLanguage();
     // 1. Filter out eliminated players (Hide them)
     const visiblePlayers = useMemo(
         () => players.filter((p) => p.status !== "ELIMINATED"),
@@ -120,27 +122,40 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                         let statusClass = "";
 
                         if (aiIntent?.playerId === p.id) {
-                            statusText = aiIntent.action.toUpperCase();
-                            if (statusText === "CALL") statusText = "CALLED";
-                            if (statusText === "CHECK") statusText = "CHECKED";
-                            if (statusText === "RAISE") statusText = "RAISED";
-                            if (statusText === "FOLD") statusText = "FOLDED";
+                            const action = aiIntent.action.toUpperCase();
+                            if (action === "CALL") statusText = t('game.status.called');
+                            else if (action === "CHECK") statusText = t('game.status.checked');
+                            else if (action === "RAISE") statusText = t('game.status.raised');
+                            else if (action === "FOLD") statusText = t('game.status.folded');
+                            else statusText = action;
 
                             // Intent colors for immediate feedback
-                            if (statusText === "CHECKED")
+                            if (action === "CHECK")
                                 statusClass = "text-[#a3a3a3] animate-pulse font-bold";
-                            else if (statusText === "RAISED")
+                            else if (action === "RAISE")
                                 statusClass = "text-[#d4af37] animate-pulse font-bold";
-                            else if (statusText === "FOLDED")
+                            else if (action === "FOLD")
                                 statusClass = "text-red-400 animate-pulse font-bold";
                             else statusClass = "text-white animate-pulse font-bold";
                         } else if (isThinking && p.status === "WAITING") {
-                            statusText = "Thinking...";
+                            statusText = t('game.status.thinking');
                             statusClass = "text-[#d4af37] animate-pulse";
                         } else {
-                            if (p.status === "CHECKED") statusClass = "text-[#a3a3a3]";
-                            else if (p.status === "RAISED") statusClass = "text-[#d4af37]";
-                            else if (p.status === "CALLED") statusClass = "text-white";
+                            if (p.status === "CHECKED") {
+                                statusText = t('game.status.checked');
+                                statusClass = "text-[#a3a3a3]";
+                            }
+                            else if (p.status === "RAISED") {
+                                statusText = t('game.status.raised');
+                                statusClass = "text-[#d4af37]";
+                            }
+                            else if (p.status === "CALLED") {
+                                statusText = t('game.status.called');
+                                statusClass = "text-white";
+                            }
+                            else if (p.status === "FOLDED") {
+                                statusText = t('game.status.folded');
+                            }
                             else if (isEliminated) statusClass = "text-red-800";
                             else if (isWinner) statusClass = "text-[#d4af37]";
                         }
@@ -283,13 +298,13 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                                     <div className="relative z-10 flex-grow flex items-end justify-center pb-2 min-h-0">
                                         {isEliminated && (
                                             <span className="text-sm font-bold text-red-500/50 uppercase tracking-widest -rotate-12 border-2 border-red-500/30 px-2 py-1">
-                                                BUSTED
+                                                {t('game.status.busted')}
                                             </span>
                                         )}
                                         {hasBet && !isFolded && !isEliminated && (
                                             <div className="flex flex-col items-center animate-in zoom-in duration-300">
                                                 <span className="text-[0.55rem] text-[#d4af37] font-sans uppercase tracking-widest mb-0.5">
-                                                    Bet
+                                                    {t('game.status.bet')}
                                                 </span>
                                                 <span className="font-mono text-xl text-white tracking-tighter leading-none">
                                                     <AnimatedCounter value={p.currentBet} prefix="$" />

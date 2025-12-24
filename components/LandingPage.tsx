@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DEFAULT_CONFIG } from "../constants";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
+import { useLanguage } from "../contexts/LanguageContext";
 
 import { formatChips } from "../utils";
 
@@ -22,44 +23,44 @@ interface GameLevel {
 
 const LEVELS: GameLevel[] = [
   {
-    id: "footscray",
-    name: "FOOTSCRAY COURTS",
-    sub: "Inner West",
+    id: "one",
+    name: "level.name.one",
+    sub: "level.sub.one",
     buyIn: 200,
     blindBig: 2,
-    desc: "Entry-Level",
+    desc: "level.one",
   },
   {
-    id: "boxhill",
-    name: "BOX HILL CENTRE",
-    sub: "Eastern Hub",
+    id: "two",
+    name: "level.name.two",
+    sub: "level.sub.two",
     buyIn: 1000,
     blindBig: 10,
-    desc: "Middle-Class",
+    desc: "level.two",
   },
   {
-    id: "glen",
-    name: "GLEN WAVERLEY",
-    sub: "School District",
+    id: "three",
+    name: "level.name.three",
+    sub: "level.sub.three",
     buyIn: 10000,
     blindBig: 100,
-    desc: "Family-Stability",
+    desc: "level.three",
   },
   {
-    id: "balwyn",
-    name: "BALWYN HILL",
-    sub: "Blue-Chip East",
+    id: "four",
+    name: "level.name.four",
+    sub: "level.sub.four",
     buyIn: 100000,
     blindBig: 1000,
-    desc: "Old Money",
+    desc: "level.four",
   },
   {
-    id: "toorak",
-    name: "TOORAK ESTATE",
-    sub: "Elite South",
+    id: "five",
+    name: "level.name.five",
+    sub: "level.sub.five",
     buyIn: 500000,
     blindBig: 5000,
-    desc: "Top of the Chain",
+    desc: "level.five",
   },
 ];
 
@@ -68,9 +69,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   username,
   isExiting,
 }) => {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG);
   // Fixed: Initialize with a valid ID from the LEVELS array
-  const [selectedLevelId, setSelectedLevelId] = useState<string>("footscray");
+  const [selectedLevelId, setSelectedLevelId] = useState<string>("one");
 
   // Sync config with selected level
   useEffect(() => {
@@ -123,7 +125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-col border-b border-white/10 pb-4 md:pb-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl md:text-3xl font-light text-white tracking-tight font-sans">
-                TABLE SETUP
+                {t('landing.table_setup')}
               </h2>
               <div className="flex items-center gap-3">
                 <span className="relative flex h-2 w-2">
@@ -131,8 +133,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <span className="relative inline-flex rounded-full h-full w-full bg-[#d4af37]"></span>
                 </span>
                 <span className="text-[0.6rem] md:text-xs font-mono text-white/50 uppercase tracking-widest">
-                  PLAYER:{" "}
-                  <span className="text-white">{username || "UNKNOWN"}</span>
+                  {t('landing.player')}:{" "}
+                  <span className="text-white">{username || t('landing.unknown')}</span>
                 </span>
               </div>
             </div>
@@ -141,7 +143,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* LEVEL SELECTION (Horizontal Cards) */}
           <div className="flex flex-col gap-4">
             <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
-              Select Operation Tier
+              {t('landing.select_stratum')}
             </label>
 
             <div className="w-full overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x snap-mandatory">
@@ -167,13 +169,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                             className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${isActive ? "text-black/60" : "text-gray-500"
                               }`}
                           >
-                            {level.sub}
+                            {t(level.sub)}
                           </span>
                           <span
                             className={`text-lg font-bold font-sans tracking-tight leading-none ${isActive ? "text-black" : "text-white"
                               }`}
                           >
-                            {level.name}
+                            {t(level.name)}
                           </span>
                         </div>
                         {isActive && (
@@ -184,7 +186,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <div className="mt-auto flex flex-col gap-1">
                         <div className="flex justify-between items-end border-b border-black/10 pb-2 mb-2">
                           <span className="text-[0.6rem] uppercase font-bold">
-                            Buy-In
+                            {t('landing.buy_in')}
                           </span>
                           <span className="font-mono text-xl font-bold tracking-tighter">
                             ${formatChips(level.buyIn)}
@@ -192,7 +194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         </div>
                         <div className="flex justify-between items-end">
                           <span className="text-[0.6rem] uppercase font-bold">
-                            Blinds
+                            {t('landing.blinds')}
                           </span>
                           <span className="font-mono text-sm font-bold">
                             ${level.blindBig / 2}/${level.blindBig}
@@ -206,7 +208,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           : "bg-[#222] text-gray-500"
                           }`}
                       >
-                        {level.desc}
+                        {t(level.desc)}
                       </div>
                     </button>
                   );
@@ -219,22 +221,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
             <div className="flex flex-col mb-4">
               <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
-                Table Size
+                {t('landing.tactical_config')}
               </label>
               <span className="text-xs text-white/40 mt-1 pl-1">
-                Total players including you
+                {t('landing.total_players_note')}
               </span>
             </div>
 
             <div className="grid grid-cols-3 gap-3 md:gap-4">
               {[
-                { total: 2, opponents: 1, label: "DUEL", desc: "1v1" },
-                { total: 6, opponents: 5, label: "SQUAD", desc: "6-Max" },
+                { total: 2, opponents: 1, label: "landing.size.heads_up", desc: "landing.size.duel" },
+                { total: 6, opponents: 5, label: "landing.size.6max", desc: "landing.size.short_handed" },
                 {
                   total: 10,
                   opponents: 9,
-                  label: "PLATOON",
-                  desc: "Full Ring",
+                  label: "landing.size.full_ring",
+                  desc: "landing.size.standard",
                 },
               ].map((size) => {
                 const isSelected = config.opponentCount === size.opponents;
@@ -263,7 +265,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         className={`text-[0.6rem] font-bold uppercase ${isSelected ? "text-[#d4af37]/80" : "text-white/20"
                           }`}
                       >
-                        PLAYER
+                        {t('landing.player')}
                       </span>
                     </div>
 
@@ -271,14 +273,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       className={`text-[0.55rem] uppercase tracking-[0.2em] font-bold mb-1 ${isSelected ? "text-white" : "text-white/30"
                         }`}
                     >
-                      {size.label}
+                      {t(size.label)}
                     </span>
 
                     <span
                       className={`text-[0.5rem] font-mono ${isSelected ? "text-[#d4af37]/60" : "text-white/20"
                         }`}
                     >
-                      {size.desc}
+                      {t(size.desc)}
                     </span>
 
                     {isSelected && (
@@ -297,7 +299,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               variant="gold"
               className="w-full text-xs md:text-sm tracking-[0.3em] py-5 md:py-6 shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] border-[#d4af37]/50"
             >
-              INITIATE: {selectedLevel.name}
+              {t('action.initiate')}: {t(selectedLevel.name)}
             </ActionButton>
           </div>
         </div>
