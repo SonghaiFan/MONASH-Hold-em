@@ -1,12 +1,7 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Frank's Hold'em
 
-# Run and deploy your AI Studio app
+No-Limit Texas Hold'em against AI opponents whose brains are OpenRouter models (TypeSafe Jev, Gemini, Claude, GPT, Grok, DeepSeek, Kimi), plus a spectator arena where the models play each other.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1LtbSTCbm01-nWDZi0_8-C3isC3v7YpBM
 
 ## Run Locally
 

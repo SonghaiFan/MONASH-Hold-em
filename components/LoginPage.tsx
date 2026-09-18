@@ -1,3 +1,4 @@
+import { FrankSignature } from "./FrankSignature";
 import React, { useState, useEffect } from 'react';
 import { ActionButton } from './ActionButton';
 import { PlayingCard } from './PlayingCard';
@@ -86,13 +87,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                 <div className="flex flex-col items-center gap-4 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
 
                     <div className="relative">
-                        <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 mb-2 font-sans drop-shadow-2xl">
-                            MONASH
+                        <h1 className="mb-2 drop-shadow-2xl">
+                            <FrankSignature title="Frank" className="w-56 md:w-80 h-auto text-white drop-shadow-[0_0_24px_rgba(212,175,55,0.25)]" />
                         </h1>
                         <div className="absolute -inset-1 blur-xl bg-white/10 rounded-full opacity-0 animate-pulse delay-1000" />
                         <h2 className="text-[#d4af37] font-mono tracking-[0.5em] text-xs md:text-sm uppercase pl-1 drop-shadow-lg flex items-center justify-center gap-2">
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
-                            Hold'em Protocol
+                            Frank's Hold'em
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
                         </h2>
                     </div>

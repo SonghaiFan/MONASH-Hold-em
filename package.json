@@ -1,5 +1,5 @@
 {
-  "name": "monash-hold'em",
+  "name": "franks-hold-em",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,8 @@
     "tournament": "esbuild scripts/tournament.ts --bundle --platform=node --format=esm --outfile=.tournament/tournament.mjs --log-level=error && node --env-file=.env.local .tournament/tournament.mjs"
   },
   "dependencies": {
+    "framer-motion": "^13.4.0",
+    "lucide-react": "^1.47.0",
     "matter-js": "0.19.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

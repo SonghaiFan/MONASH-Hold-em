@@ -192,6 +192,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   blindBig: BLIND_BIG,
   opponentCount: 5,
   aiModel: AI_MODELS[0].id,
+  opponentModels: AI_MODELS.slice(0, 5).map((m) => m.id),
 };
 
 export const generateDeck = (): Card[] => {
@@ -219,8 +220,13 @@ export const initializeGame = (
 ): GameState => {
   const aiPlayers: Player[] = [];
 
-  // Create AI Players
-  for (let i = 0; i < config.opponentCount; i++) {
+  // Create AI Players — one per chosen brain, or opponentCount copies of the default
+  const brains =
+    config.opponentModels && config.opponentModels.length > 0
+      ? config.opponentModels
+      : Array.from({ length: config.opponentCount }, () => config.aiModel);
+
+  for (let i = 0; i < brains.length; i++) {
     let name = AI_NAMES[i % AI_NAMES.length];
     // simple variance in AI stacks (+/- 10%)
     const variance =
@@ -240,6 +246,7 @@ export const initializeGame = (
       isActive: true,
       currentBet: 0,
       persona: PERSONAS[AI_PERSONA_BY_NAME[name] ?? "TAG"],
+      model: brains[i],
       tilt: 1,
       handStartChips: chips,
     });

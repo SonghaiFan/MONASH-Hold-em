@@ -20,7 +20,7 @@ import {
 
 const DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 const CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
-const APP_TITLE = "MONASH Hold'em";
+const APP_TITLE = "Frank's Hold'em";
 
 export interface ModelJudgement {
   handStrength: number; // 0..4 on HAND_STRENGTH_LEVELS

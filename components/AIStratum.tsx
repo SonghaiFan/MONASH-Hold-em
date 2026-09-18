@@ -1,3 +1,4 @@
+import { AI_MODELS } from "../constants";
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { GamePhase, Player, WinningHand } from "../types";
 import { PlayingCard } from "./PlayingCard";
@@ -305,6 +306,12 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                                                 >
                                                     {p.name}
                                                 </span>
+                                                {p.model && (() => {
+                                                    const m = AI_MODELS.find((x) => x.id === p.model);
+                                                    return m ? (
+                                                        <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: m.color }} title={m.label} />
+                                                    ) : null;
+                                                })()}
                                                 {p.persona && (
                                                     <span
                                                         className={`text-[0.55rem] font-mono tracking-wider shrink-0 ${isFolded ? "text-[#555]" : "text-[#d4af37]/70"

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Poker</title>
+    <title>Frank's Hold'em</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,6 +46,262 @@
 
         .font-mono {
             font-family: 'Space Mono', monospace;
+        }
+
+
+        /* ══ Assignees (Bencho, MIT — bencho.dev/licence) ═══════════
+           A pill that fills with faces, and the list it fills from.
+           See components/Assignees.tsx — in particular why the rail's
+           width is an inline number rather than anything measured.
+
+           Bencho's tokens, mapped onto this app's own and scoped to
+           the component root so nothing leaks out:
+             --ink / --fill-on   → --text-main, the page's text colour.
+                                   There is no "fill" here, so the
+                                   on-colour is simply the ink.
+             --ink-rgb / --fill-on-rgb → the same, as bare numbers,
+                                   because the rules build rgba() from it.
+             --card / --fill-slab → the near-black panel the setup
+                                   screen draws its cards on (Tailwind's
+                                   bg-black/40 over the felt); no token
+                                   existed, so it is set here as a solid.
+             --font-ui           → Inter, the body face.
+             --pane-edge         → the 1px white-at-8% hairline the
+                                   panels use for their borders. */
+        .pik {
+            --ink: var(--text-main);
+            --ink-rgb: 245, 245, 245;
+            --fill-on: var(--text-main);
+            --fill-on-rgb: 245, 245, 245;
+            --card: #0d1712;
+            --fill-slab: #0d1712;
+            --font-ui: 'Inter', sans-serif;
+            --pane-edge: rgba(255, 255, 255, 0.08);
+
+            position: relative;
+            box-sizing: border-box;
+            font-family: var(--font-ui);
+            color: var(--fill-on, var(--ink));
+        }
+
+        .pik-pill {
+            position: relative;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            height: 44px;
+            /* tighter on the left, because a face is a filled circle and
+               a word is not: 16 of air beside "Add people" is the same
+               amount of air as 8 beside a picture */
+            padding: 0 12px 0 8px;
+            border: 0;
+            background: var(--fill-slab, var(--card));
+            /* ── NO SHADOW, AND NO HAIRLINE EITHER ────────────────────
+               Both are gone. The ring came back only when Stroke asks
+               for it — it carried a permanent one, which made that
+               switch a control reporting a state it was not producing,
+               the fault the tilt card and the wheel both had.
+
+               The drop shadow went with it. Nothing here needs lifting:
+               the pill and the card are the fill's own slab and they sit
+               on the block's grey ground, which separates them on its
+               own. A shadow under a shape that already reads is the
+               component insisting it is floating. */
+            color: inherit;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* FRANK: the felt is darker than Bencho's grey ground, so the
+           slab needs the hairline to read as an object at all. Stroke
+           is on, permanently, for the same reason the panels around it
+           carry one. */
+        .pik-pill, .pik-card { box-shadow: 0 0 0 1px var(--pane-edge); }
+
+        .pik-pill:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.45);
+        }
+
+        /* ── the rail the faces sit in ──────────────────────────────
+           Its width is the whole animation. The faces are absolute
+           inside it, so none of them moves when another arrives — the
+           rail simply has more room, and the pill is sized by it.
+           Nothing here measures anything. */
+        .pik-rail {
+            position: relative;
+            flex: none;
+            height: 28px;
+            transition: width 300ms cubic-bezier(0.33, 0.55, 0.2, 1);
+        }
+
+        .pik-face {
+            position: absolute;
+            /* both corners pinned: the face is placed by its transform,
+               in the row and in the quad alike, so `left` is an origin
+               rather than a position */
+            top: 0;
+            left: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            overflow: hidden;
+            /* the ring is the CARD's colour, not white: it is the gap
+               between two overlapping faces, so it has to be whatever is
+               behind them or the stack grows a halo in dark mode */
+            box-shadow: 0 0 0 2px var(--fill-slab, var(--card));
+        }
+
+        .pik-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* with no faces the rail collapses to nothing but the pill's gap
+           still sits in front of the word; pull it back so the text is
+           inset 12 from the edge, matching the pill's own right padding */
+        .pik-say { margin-left: -6px; color: var(--fill-on, var(--ink)); }
+
+        /* ── the chevron IS the hover state ─────────────────────────
+           With the shadow gone the pill had nothing left to answer the
+           cursor with, and a fill appearing behind it would be a second
+           shape arriving on a control whose whole subject is shapes —
+           the palette's refresh button makes the same call. The glyph
+           goes to a stronger ink instead: same thing said, nothing new
+           on screen. */
+        .pik-chev {
+            flex: none;
+            margin-left: -2px;
+            color: rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.4);
+            transition: rotate 240ms cubic-bezier(0.33, 0.55, 0.2, 1), color 150ms ease;
+        }
+
+        .pik-pill:hover .pik-chev { color: rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.75); }
+
+        .pik-pill[aria-expanded="true"] .pik-chev { rotate: 180deg; }
+
+        /* ── the list ───────────────────────────────────────────────
+           Absolute, so opening it moves nothing. The block reserves
+           the room for it either way — see the note in Picker.tsx. */
+        .pik-card {
+            position: absolute;
+            top: 54px;
+            left: 0;
+            /* FRANK: the pill's width is the face count; the card is
+               a list of names and wants a fixed width of its own. */
+            width: 264px;
+            z-index: 30;
+            box-sizing: border-box;
+            padding: 6px;
+            background: var(--fill-slab, var(--card));
+            /* ── it unfolds from the PILL'S corner ────────────────────
+               Top left, not the middle: the pill starts at this same
+               left edge, so the card opens down and out from under it
+               rather than growing symmetrically out of its own centre,
+               which is what a box appearing does. */
+            transform-origin: 0 0;
+        }
+
+        .pik-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            height: 48px;
+            padding: 0 8px;
+            border: 0;
+            /* the card's corner less its 6px padding — set in Picker.tsx
+               so it tracks the Corner knob; 16 is the value at the
+               default 22 */
+            border-radius: var(--pik-row-r, 16px);
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: background 140ms ease;
+        }
+
+        .pik-row:hover { background: rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.05); }
+
+        .pik-row:focus-visible {
+            outline: none;
+            background: rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.07);
+        }
+
+        .pik-av {
+            flex: none;
+            width: 32px; height: 32px;
+            border-radius: 999px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .pik-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+
+        /* ── the same type as the other two lists ────────────────
+           It was 13.5 at 500 with a touch of negative tracking, which
+           is a LABEL's setting — right for a word that names a control
+           and wrong for a row of people. The selection list and the
+           reorder list both set their names at the regular weight, and
+           they are the same object: a face, a name, a thing to press.
+           Three lists on one bench reading as three different type
+           systems is the fault; matching `.rst-name` is the fix. */
+        .pik-name {
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* FRANK: the seat colour, so the list matches the arena. */
+        .pik-dot { display: inline-block; width: 7px; height: 7px; border-radius: 999px; margin-right: 7px; vertical-align: 1px; }
+
+        .pik-role {
+            font-size: 11.5px;
+            color: rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.45);
+        }
+
+        /* ── the mark ───────────────────────────────────────────────
+           Drawn at rest as an empty ring and filled when it is on, so
+           the row always shows that it CAN be chosen. A control that
+           only appears once used is one you have to guess at first. */
+        .pik-mark {
+            flex: none;
+            display: grid;
+            place-items: center;
+            width: 18px; height: 18px;
+            /* ── a rounded square, not a disc ────────────────────────
+               One radius for both states, because it is one box: the
+               empty mark and the ticked one are the same square with the
+               fill switched, so the shape cannot disagree with itself
+               between rows. The radius is 0.3 of the side — round enough
+               to belong to the pill and the card above it, square enough
+               that a row of four reads as a column of checkboxes rather
+               than as a second set of avatars beside the real ones.
+
+               18, down from 20. The mark answers the row; it is not the
+               subject of it, and at 20 against a 28px face it was close
+               enough in size to read as the second circle in a pair. Two
+               pixels is enough to put it back behind the name. */
+            border-radius: 5.5px;
+            box-shadow: inset 0 0 0 1.5px rgba(var(--fill-on-rgb, var(--ink-rgb)), 0.22);
+            transition: background 160ms ease, box-shadow 160ms ease;
+        }
+
+        .pik-row[data-on] .pik-mark {
+            background: var(--fill-on, var(--ink));
+            box-shadow: inset 0 0 0 1.5px var(--fill-on, var(--ink));
+        }
+
+        .pik-tick {
+            display: grid;
+            place-items: center;
+            color: var(--fill-slab, var(--card));
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pik-rail, .pik-chev { transition-duration: 1ms; }
         }
 
         /* Custom Scrollbar */

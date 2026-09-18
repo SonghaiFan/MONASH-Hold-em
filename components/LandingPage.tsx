@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { AI_MODELS, DEFAULT_CONFIG } from "../constants";
+import { DEFAULT_CONFIG } from "../constants";
+import { Assignees } from "./Assignees";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 
@@ -92,12 +93,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
   }, [username]);
 
-  const handleOpponentChange = (val: number) => {
-    setConfig((prev) => ({ ...prev, opponentCount: val }));
-  };
-
-  const handleModelChange = (id: string) => {
-    setConfig((prev) => ({ ...prev, aiModel: id }));
+  const opponents = config.opponentModels ?? [];
+  const handleOpponentsChange = (ids: string[]) => {
+    setConfig((prev) => ({ ...prev, opponentModels: ids, opponentCount: ids.length }));
   };
 
   // Safe access with fallback (though fallback shouldn't be needed with correct initial state)
@@ -219,142 +217,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          {/* TACTICAL CONFIG (Table Size) */}
-          <div className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex flex-col mb-4">
+          {/* OPPONENTS — who sits down, and which brain each one thinks with */}
+          <div className="relative z-20 bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+            <div className="flex flex-col md:w-56 shrink-0">
               <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
-                Table Size
+                Opponents
               </label>
               <span className="text-xs text-white/40 mt-1 pl-1">
-                Total players including you
+                {opponents.length === 0
+                  ? "Pick at least one"
+                  : `${opponents.length + 1}-handed · each face is a model`}
               </span>
             </div>
-
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
-              {[
-                { total: 2, opponents: 1, label: "DUEL", desc: "1v1" },
-                { total: 6, opponents: 5, label: "SQUAD", desc: "6-Max" },
-                {
-                  total: 10,
-                  opponents: 9,
-                  label: "PLATOON",
-                  desc: "Full Ring",
-                },
-              ].map((size) => {
-                const isSelected = config.opponentCount === size.opponents;
-                return (
-                  <button
-                    key={size.total}
-                    onClick={() => handleOpponentChange(size.opponents)}
-                    className={`
-                                            relative flex flex-col items-center justify-center py-4 md:py-6 px-2 rounded-xl border transition-all duration-300 group
-                                            ${isSelected
-                        ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
-                        : "bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/20"
-                      }
-                                        `}
-                  >
-                    <div className="flex items-baseline gap-1 mb-1">
-                      <span
-                        className={`text-2xl md:text-3xl font-mono font-bold tracking-tighter ${isSelected
-                          ? "text-[#d4af37]"
-                          : "text-white/40 group-hover:text-white/60"
-                          }`}
-                      >
-                        {size.total}
-                      </span>
-                      <span
-                        className={`text-[0.6rem] font-bold uppercase ${isSelected ? "text-[#d4af37]/80" : "text-white/20"
-                          }`}
-                      >
-                        PLAYER
-                      </span>
-                    </div>
-
-                    <span
-                      className={`text-[0.55rem] uppercase tracking-[0.2em] font-bold mb-1 ${isSelected ? "text-white" : "text-white/30"
-                        }`}
-                    >
-                      {size.label}
-                    </span>
-
-                    <span
-                      className={`text-[0.5rem] font-mono ${isSelected ? "text-[#d4af37]/60" : "text-white/20"
-                        }`}
-                    >
-                      {size.desc}
-                    </span>
-
-                    {isSelected && (
-                      <div className="absolute inset-0 border border-[#d4af37] rounded-xl animate-pulse opacity-20" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* OPPONENT BRAIN (Model Provider) */}
-          <div className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex flex-col mb-4">
-              <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
-                Opponent Brain
-              </label>
-              <span className="text-xs text-white/40 mt-1 pl-1">
-                Which model the AI players think with (via OpenRouter)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {AI_MODELS.map((model) => {
-                const isSelected = config.aiModel === model.id;
-                return (
-                  <button
-                    key={model.id}
-                    onClick={() => handleModelChange(model.id)}
-                    title={model.id}
-                    className={`
-                      relative flex flex-col items-center justify-center py-4 px-2 rounded-xl border transition-all duration-300 group
-                      ${isSelected
-                        ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
-                        : "bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/20"
-                      }
-                    `}
-                  >
-                    <span
-                      className={`text-sm md:text-base font-mono font-bold tracking-wider mb-1 ${isSelected
-                        ? "text-[#d4af37]"
-                        : "text-white/40 group-hover:text-white/60"
-                        }`}
-                    >
-                      {model.label}
-                    </span>
-                    <span
-                      className={`text-[0.5rem] font-mono ${isSelected ? "text-[#d4af37]/60" : "text-white/20"
-                        }`}
-                    >
-                      {model.sub}
-                    </span>
-                    <span
-                      className={`mt-1 text-[0.45rem] uppercase tracking-[0.2em] font-bold ${isSelected ? "text-white/60" : "text-white/20"
-                        }`}
-                    >
-                      {model.kind === "decisions" ? "probabilities" : "chat + json"}
-                    </span>
-
-                    {isSelected && (
-                      <div className="absolute inset-0 border border-[#d4af37] rounded-xl animate-pulse opacity-20" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <Assignees value={opponents} onChange={handleOpponentsChange} />
           </div>
 
           {/* DEPLOY BUTTON */}
           <div className="pt-4 md:pt-8">
             <ActionButton
               onClick={() => onStartGame(config)}
+              disabled={opponents.length === 0}
               variant="gold"
               className="w-full text-xs md:text-sm tracking-[0.3em] py-5 md:py-6 shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] border-[#d4af37]/50"
             >
