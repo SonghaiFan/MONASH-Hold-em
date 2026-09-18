@@ -224,8 +224,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   return (
                     <button
                       key={venue.id}
-                      disabled={!open}
-                      title={open ? undefined : `Buy-in $${venue.buyIn.toLocaleString()} · you have $${wealth.toLocaleString()}`}
+                      title={open ? undefined : `Buy-in $${venue.buyIn.toLocaleString()} · you have $${wealth.toLocaleString()} · look, but you can't sit down`}
                       onClick={(e) => {
                         setSelectedLevelId(venue.id);
                         e.currentTarget.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -233,31 +232,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       className={`
                                                 relative w-[240px] md:w-[260px] p-6 rounded-2xl border text-left flex flex-col gap-4
                                                 transition-all duration-300 snap-center group
-                                                ${isActive
+                                                ${isActive && open
                           ? "bg-[#d4af37] border-[#d4af37] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] scale-100"
-                          : open
-                            ? "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
-                            : "bg-black/40 border-white/5 text-gray-600 scale-95 opacity-50 cursor-not-allowed"
+                          : isActive
+                            ? "bg-black/60 border-dashed border-[#d4af37]/60 text-gray-300 scale-100"
+                            : open
+                              ? "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
+                              : "bg-black/40 border-white/5 text-gray-500 opacity-60 scale-95 hover:opacity-90 hover:scale-100"
                         }
                                             `}
                     >
                       <div className="flex justify-between items-start w-full">
                         <div className="flex flex-col">
                           <span
-                            className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${isActive ? "text-black/60" : "text-gray-500"
+                            className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${isActive && open ? "text-black/60" : "text-gray-500"
                               }`}
                           >
                             {venue.sub}
                           </span>
                           <span
-                            className={`text-lg font-bold font-sans tracking-tight leading-none ${isActive ? "text-black" : "text-white"
+                            className={`text-lg font-bold font-sans tracking-tight leading-none ${isActive && open ? "text-black" : "text-white"
                               }`}
                           >
                             {venue.name}
                           </span>
                         </div>
                         {isActive && (
-                          <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                          <div className={`w-2 h-2 rounded-full animate-pulse ${open ? "bg-black" : "bg-[#d4af37]"}`} />
                         )}
                       </div>
 
@@ -281,12 +282,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       </div>
 
                       <div
-                        className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[0.5rem] uppercase tracking-widest font-bold shadow-sm ${isActive
+                        className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[0.5rem] uppercase tracking-widest font-bold shadow-sm whitespace-nowrap ${isActive && open
                           ? "bg-black text-[#d4af37]"
-                          : "bg-[#222] text-gray-500"
+                          : !open
+                            ? "bg-[#222] text-[#d4af37]/70"
+                            : "bg-[#222] text-gray-500"
                           }`}
                       >
-                        {open ? venue.desc : "Locked"}
+                        {open ? venue.desc : `Locked · $${venue.buyIn.toLocaleString()}`}
                       </div>
                     </button>
                   );
@@ -316,7 +319,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
                   Menu · {level.name}
                 </label>
-                <span className="text-xs text-white/40 mt-1 pl-1">{menu.length === 1 ? "One provider here" : `${menu.length} providers here`} · order one, someone sits down with it</span>
+                <span className="text-xs text-white/40 mt-1 pl-1">
+                  {menu.length === 1 ? "One provider here" : `${menu.length} providers here`}
+                  {affordable(level, wealth) ? " · order one, someone sits down with it" : " · just looking: this room is above your bankroll"}
+                </span>
               </div>
               <span className="text-[0.65rem] font-mono text-white/35 shrink-0 whitespace-nowrap pl-3">{seats.length} / {MAX_OPPONENTS}</span>
             </div>
@@ -371,7 +377,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             variant="gold"
             className="w-full text-xs md:text-sm tracking-[0.3em] py-5 md:py-6 shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] border-[#d4af37]/50"
           >
-            {seats.length === 0 ? "SEAT SOMEONE FIRST" : `DEAL · ${seats.length + 1} PLAYERS · ${level.name}`}
+            {!affordable(level, wealth)
+              ? `LOCKED · NEED $${level.buyIn.toLocaleString()} · YOU HAVE $${wealth.toLocaleString()}`
+              : seats.length === 0
+                ? "SEAT SOMEONE FIRST"
+                : `DEAL · ${seats.length + 1} PLAYERS · ${level.name}`}
           </ActionButton>
         </div>
       </div>
