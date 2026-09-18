@@ -206,7 +206,7 @@ export const getAIDecision = async (
 
   try {
     if (!API_KEY) throw new Error("OPENROUTER_API_KEY is not set");
-    const trace = await runModel(situation, modelId, API_KEY);
+    const trace = await runModel(situation, activePlayer.model ?? modelId, API_KEY);
     return decideWithPersona(situation, trace.judgement, persona, tilt);
   } catch (error) {
     console.error("AI Error:", error);

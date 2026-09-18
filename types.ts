@@ -50,6 +50,7 @@ export interface Player {
   currentBet: number; // Amount contributed in current street
   reasoningHistory?: string[]; // AI's internal thought process history
   persona?: Persona; // AI only
+  model?: string; // AI only: per-player OpenRouter model override
   tilt?: number; // AI only: current aggression multiplier from recent losses (1 = calm)
   handStartChips?: number; // AI only: stack at the start of the current hand, for tilt tracking
 }
