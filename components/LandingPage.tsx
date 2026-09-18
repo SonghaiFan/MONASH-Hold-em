@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { AI_MODELS, DEFAULT_CONFIG } from "../constants";
+import { AI_MODELS, AI_NAMES, DEFAULT_CONFIG } from "../constants";
 import { GameConfig } from "../types";
+import { ActionButton } from "./ActionButton";
+import { Assignees, Person } from "./Assignees";
 
-// Table setup, laid out like an order sheet: pick the stakes, then say how
-// many of each opponent you want. Two JEVs and three GPTs is a valid order.
+// Table setup in three layers: the VENUE decides which model providers are
+// on the menu; ordering from the menu seats a PERSON — a name and a face —
+// who thinks with that model; the pill at the top is who is at the table.
 
 interface LandingPageProps {
   onStartGame: (config: GameConfig) => void;
@@ -12,182 +15,336 @@ interface LandingPageProps {
   isExiting?: boolean;
 }
 
-interface Stakes {
+interface GameLevel {
   id: string;
   name: string;
+  sub: string;
   buyIn: number;
   blindBig: number;
+  desc: string;
+  models: string[]; // providers this venue offers, by OpenRouter slug
 }
 
-const STAKES: Stakes[] = [
-  { id: "footscray", name: "Footscray", buyIn: 200, blindBig: 2 },
-  { id: "boxhill", name: "Box Hill", buyIn: 1000, blindBig: 10 },
-  { id: "glen", name: "Glen Waverley", buyIn: 10000, blindBig: 100 },
-  { id: "balwyn", name: "Balwyn", buyIn: 100000, blindBig: 1000 },
-  { id: "toorak", name: "Toorak", buyIn: 500000, blindBig: 5000 },
+const JEV = "~typesafe/jev-latest";
+const DEEPSEEK = "deepseek/deepseek-v4-flash";
+const KIMI = "moonshotai/kimi-k2.5";
+const GEMINI = "google/gemini-2.5-flash-lite";
+const GROK = "x-ai/grok-4.3";
+const CLAUDE = "anthropic/claude-haiku-4.5";
+const GPT = "openai/gpt-5-mini";
+
+const LEVELS: GameLevel[] = [
+  {
+    id: "footscray",
+    name: "FOOTSCRAY COURTS",
+    sub: "Inner West",
+    buyIn: 200,
+    blindBig: 2,
+    desc: "Entry-Level",
+    models: [JEV],
+  },
+  {
+    id: "boxhill",
+    name: "BOX HILL CENTRE",
+    sub: "Eastern Hub",
+    buyIn: 1000,
+    blindBig: 10,
+    desc: "Middle-Class",
+    models: [JEV, DEEPSEEK, KIMI],
+  },
+  {
+    id: "glen",
+    name: "GLEN WAVERLEY",
+    sub: "School District",
+    buyIn: 10000,
+    blindBig: 100,
+    desc: "Family-Stability",
+    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK],
+  },
+  {
+    id: "balwyn",
+    name: "BALWYN HILL",
+    sub: "Blue-Chip East",
+    buyIn: 100000,
+    blindBig: 1000,
+    desc: "Old Money",
+    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK, CLAUDE],
+  },
+  {
+    id: "toorak",
+    name: "TOORAK ESTATE",
+    sub: "Elite South",
+    buyIn: 500000,
+    blindBig: 5000,
+    desc: "Top of the Chain",
+    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK, CLAUDE, GPT],
+  },
 ];
 
 const MAX_OPPONENTS = 9; // a 10-max table
 
-const avatarFor = (label: string) =>
-  `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(label)}`;
+interface Seat {
+  id: string; // the person's name doubles as the id
+  model: string;
+}
 
-// counts per model → one seat per unit, in menu order
-const seatsFrom = (counts: Record<string, number>) =>
-  AI_MODELS.flatMap((m) => Array.from({ length: counts[m.id] ?? 0 }, () => m.id));
+const avatarFor = (name: string) =>
+  `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(name)}`;
 
-const countsFrom = (seats: string[]) =>
-  seats.reduce<Record<string, number>>((acc, id) => ({ ...acc, [id]: (acc[id] ?? 0) + 1 }), {});
+const modelFor = (id: string) => AI_MODELS.find((m) => m.id === id);
+const venueOffering = (modelId: string) => LEVELS.find((l) => l.models.includes(modelId));
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartGame,
   username,
   isExiting,
 }) => {
-  const [stakesId, setStakesId] = useState<string>(STAKES[0].id);
-  const [counts, setCounts] = useState<Record<string, number>>(() =>
-    countsFrom(DEFAULT_CONFIG.opponentModels ?? [])
+  const [selectedLevelId, setSelectedLevelId] = useState<string>(LEVELS[0].id);
+  // The default order: one JEV, the only thing the entry venue serves
+  const [seats, setSeats] = useState<Seat[]>([{ id: AI_NAMES[0], model: JEV }]);
+
+  const level = LEVELS.find((l) => l.id === selectedLevelId) ?? LEVELS[0];
+
+  // Moving venue sends home anyone whose provider is not on the new menu
+  useEffect(() => {
+    setSeats((s) => s.filter((seat) => level.models.includes(seat.model)));
+  }, [level]);
+
+  const cast: Person[] = useMemo(
+    () =>
+      seats.map((seat) => {
+        const m = modelFor(seat.model);
+        return { id: seat.id, name: seat.id, role: m?.label ?? seat.model, color: m?.color, avatar: avatarFor(seat.id) };
+      }),
+    [seats]
   );
 
-  const stakes = STAKES.find((s) => s.id === stakesId) ?? STAKES[0];
-  const seats = useMemo(() => seatsFrom(counts), [counts]);
-  const total = seats.length;
+  const countOf = (modelId: string) => seats.filter((s) => s.model === modelId).length;
+
+  // Someone joins: the first name nobody at the table has yet
+  const join = (modelId: string) =>
+    setSeats((s) => {
+      if (s.length >= MAX_OPPONENTS) return s;
+      const name = AI_NAMES.find((n) => !s.some((seat) => seat.id === n));
+      if (!name) return s;
+      return [...s, { id: name, model: modelId }];
+    });
+
+  // Someone leaves: the most recent person on that model
+  const leave = (modelId: string) =>
+    setSeats((s) => {
+      const idx = [...s].map((seat) => seat.model).lastIndexOf(modelId);
+      return idx === -1 ? s : s.filter((_, i) => i !== idx);
+    });
 
   const config: GameConfig = {
     ...DEFAULT_CONFIG,
     playerName: username || DEFAULT_CONFIG.playerName,
-    blindBig: stakes.blindBig,
-    startingStackHuman: stakes.buyIn,
-    startingStackAI: stakes.buyIn,
-    opponentModels: seats,
-    opponentCount: total,
+    blindBig: level.blindBig,
+    startingStackHuman: level.buyIn,
+    startingStackAI: level.buyIn,
+    opponents: seats.map((s) => ({ name: s.id, model: s.model })),
+    opponentModels: seats.map((s) => s.model),
+    opponentCount: seats.length,
   };
-
-  const bump = (id: string, delta: number) =>
-    setCounts((c) => {
-      if (delta > 0 && total >= MAX_OPPONENTS) return c;
-      return { ...c, [id]: Math.max(0, (c[id] ?? 0) + delta) };
-    });
-
-  // Keep the page's own scroll at the top when it mounts after the login transition
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <div
       className={`
-        w-full h-full overflow-y-auto overflow-x-hidden relative z-20
-        transition-all duration-700 ease-[cubic-bezier(0.64,0,0.78,0)]
-        ${isExiting ? "-translate-y-8 opacity-0 blur-md" : "translate-y-0 opacity-100 blur-0"}
-      `}
+            w-full h-full flex flex-col relative z-20
+            transition-all duration-700 ease-[cubic-bezier(0.64,0,0.78,0)]
+            ${isExiting
+          ? "-translate-y-8 opacity-0 blur-md"
+          : "translate-y-0 opacity-100 blur-0"
+        }
+        `}
     >
-      <div className="min-h-full flex flex-col max-w-md mx-auto px-5 pt-10 pb-32 animate-in slide-in-from-bottom-8 fade-in duration-700">
-        {/* Header */}
-        <div className="flex items-baseline justify-between border-b border-white/10 pb-4 mb-6">
-          <h2 className="text-xl font-light text-white tracking-tight">Table</h2>
-          <span className="text-[0.65rem] font-mono text-white/40 uppercase tracking-widest">
-            {username || "Player"}
-          </span>
-        </div>
+      {/* Background elements */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-l from-black/60 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
+      </div>
 
-        {/* Stakes */}
-        <div className="text-[0.6rem] font-bold uppercase tracking-widest text-white/35 mb-2">Stakes</div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 pb-1 mb-7">
-          {STAKES.map((s) => {
-            const on = s.id === stakesId;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setStakesId(s.id)}
-                className={`shrink-0 px-4 py-2 rounded-full border text-sm transition-all ${
-                  on
-                    ? "bg-[#d4af37] border-[#d4af37] text-black font-semibold"
-                    : "bg-black/30 border-white/10 text-white/60 hover:border-white/30"
-                }`}
-              >
-                ${s.buyIn.toLocaleString()}
-                <span className={`ml-2 font-mono text-[0.65rem] ${on ? "text-black/60" : "text-white/30"}`}>
-                  {s.blindBig / 2}/{s.blindBig}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col items-center p-4 md:p-6 py-8 md:py-12">
+        <div className="w-full max-w-4xl flex flex-col gap-6 md:gap-8 animate-in slide-in-from-bottom-12 fade-in duration-700">
+          {/* Header */}
+          <div className="flex flex-col border-b border-white/10 pb-4 md:pb-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl md:text-3xl font-light text-white tracking-tight font-sans">
+                TABLE SETUP
+              </h2>
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#d4af37] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-full w-full bg-[#d4af37]"></span>
                 </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Opponents menu */}
-        <div className="flex items-baseline justify-between mb-2">
-          <div className="text-[0.6rem] font-bold uppercase tracking-widest text-white/35">Opponents</div>
-          <div className="text-[0.65rem] font-mono text-white/35">{total} / {MAX_OPPONENTS}</div>
-        </div>
-        <div className="rounded-2xl bg-black/30 border border-white/5 divide-y divide-white/5">
-          {AI_MODELS.map((m) => {
-            const n = counts[m.id] ?? 0;
-            const full = total >= MAX_OPPONENTS;
-            return (
-              <div key={m.id} className="flex items-center gap-3 px-3 py-3">
-                <img
-                  src={avatarFor(m.label)}
-                  alt=""
-                  draggable={false}
-                  className={`w-10 h-10 rounded-full bg-white shrink-0 transition-opacity ${n ? "opacity-100" : "opacity-40"}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: m.color }} />
-                    <span className={`font-mono text-sm tracking-wider ${n ? "text-white" : "text-white/60"}`}>{m.label}</span>
-                  </div>
-                  <div className="text-[0.7rem] text-white/35 truncate">{m.sub}</div>
-                </div>
-
-                {/* the stepper: a lone + until you order one, then − n + */}
-                {n === 0 ? (
-                  <button
-                    onClick={() => bump(m.id, 1)}
-                    disabled={full}
-                    aria-label={`Add ${m.label}`}
-                    className="w-9 h-9 rounded-full border border-white/15 text-white/70 grid place-items-center hover:border-[#d4af37] hover:text-[#d4af37] disabled:opacity-30 transition-colors"
-                  >
-                    <Plus size={16} strokeWidth={2.2} />
-                  </button>
-                ) : (
-                  <div className="flex items-center rounded-full bg-[#d4af37] text-black h-9">
-                    <button
-                      onClick={() => bump(m.id, -1)}
-                      aria-label={`Remove one ${m.label}`}
-                      className="w-9 h-9 grid place-items-center rounded-full hover:bg-black/10"
-                    >
-                      <Minus size={16} strokeWidth={2.4} />
-                    </button>
-                    <span className="w-5 text-center font-mono font-bold text-sm tabular-nums">{n}</span>
-                    <button
-                      onClick={() => bump(m.id, 1)}
-                      disabled={full}
-                      aria-label={`Add one more ${m.label}`}
-                      className="w-9 h-9 grid place-items-center rounded-full hover:bg-black/10 disabled:opacity-30"
-                    >
-                      <Plus size={16} strokeWidth={2.4} />
-                    </button>
-                  </div>
-                )}
+                <span className="text-[0.6rem] md:text-xs font-mono text-white/50 uppercase tracking-widest">
+                  PLAYER:{" "}
+                  <span className="text-white">{username || "UNKNOWN"}</span>
+                </span>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          {/* VENUE — decides the menu */}
+          <div className="flex flex-col gap-4">
+            <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
+              Select Venue
+            </label>
+
+            <div className="w-full overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar snap-x snap-mandatory">
+              <div className="flex gap-4 min-w-max">
+                {LEVELS.map((venue) => {
+                  const isActive = selectedLevelId === venue.id;
+                  return (
+                    <button
+                      key={venue.id}
+                      onClick={() => setSelectedLevelId(venue.id)}
+                      className={`
+                                                relative w-[240px] md:w-[260px] p-6 rounded-2xl border text-left flex flex-col gap-4
+                                                transition-all duration-300 snap-center group
+                                                ${isActive
+                          ? "bg-[#d4af37] border-[#d4af37] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] scale-100"
+                          : "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
+                        }
+                                            `}
+                    >
+                      <div className="flex justify-between items-start w-full">
+                        <div className="flex flex-col">
+                          <span
+                            className={`text-[0.6rem] font-mono uppercase tracking-widest mb-1 ${isActive ? "text-black/60" : "text-gray-500"
+                              }`}
+                          >
+                            {venue.sub}
+                          </span>
+                          <span
+                            className={`text-lg font-bold font-sans tracking-tight leading-none ${isActive ? "text-black" : "text-white"
+                              }`}
+                          >
+                            {venue.name}
+                          </span>
+                        </div>
+                        {isActive && (
+                          <div className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                        )}
+                      </div>
+
+                      <div className="mt-auto flex flex-col gap-1">
+                        <div className="flex justify-between items-end border-b border-black/10 pb-2 mb-2">
+                          <span className="text-[0.6rem] uppercase font-bold">
+                            Buy-In
+                          </span>
+                          <span className="font-mono text-xl font-bold tracking-tighter">
+                            ${venue.buyIn.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[0.6rem] uppercase font-bold">
+                            Blinds
+                          </span>
+                          <span className="font-mono text-sm font-bold">
+                            ${venue.blindBig / 2}/${venue.blindBig}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[0.5rem] uppercase tracking-widest font-bold shadow-sm ${isActive
+                          ? "bg-black text-[#d4af37]"
+                          : "bg-[#222] text-gray-500"
+                          }`}
+                      >
+                        {venue.desc}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+
+          {/* AT THE TABLE — who has joined */}
+          <div className="relative z-20 bg-black/20 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-sm flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+            <div className="flex flex-col md:w-56 shrink-0">
+              <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
+                At the table
+              </label>
+              <span className="text-xs text-white/40 mt-1 pl-1">
+                {seats.length === 0 ? "Nobody yet" : `${seats.length + 1}-handed`}
+              </span>
+            </div>
+            <Assignees cast={cast} value={seats.map((s) => s.id)} onChange={(ids) => setSeats((s) => s.filter((seat) => ids.includes(seat.id)))} />
+          </div>
+
+          {/* MENU — what this venue serves */}
+          <div className="bg-black/20 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-sm">
+            <div className="flex items-baseline justify-between mb-3">
+              <div className="flex flex-col">
+                <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
+                  Menu · {level.name}
+                </label>
+                <span className="text-xs text-white/40 mt-1 pl-1">Order a brain and someone sits down with it</span>
+              </div>
+              <span className="text-[0.65rem] font-mono text-white/35">{seats.length} / {MAX_OPPONENTS}</span>
+            </div>
+            <div className="rounded-xl bg-black/30 border border-white/5 divide-y divide-white/5">
+              {AI_MODELS.map((m) => {
+                const offered = level.models.includes(m.id);
+                const n = countOf(m.id);
+                const full = seats.length >= MAX_OPPONENTS;
+                const unlockAt = offered ? null : venueOffering(m.id);
+                return (
+                  <div key={m.id} className={`flex items-center gap-3 px-3 py-3 ${offered ? "" : "opacity-40"}`}>
+                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
+                    <div className="min-w-0 flex-1">
+                      <span className={`font-mono text-sm tracking-wider ${n ? "text-[#d4af37]" : "text-white"}`}>{m.label}</span>
+                      <div className="text-[0.7rem] text-white/35 truncate">
+                        {offered ? m.sub : `Served from ${unlockAt?.name ?? "a better venue"}`}
+                      </div>
+                    </div>
+                    {!offered ? (
+                      <span className="text-[0.55rem] font-mono uppercase tracking-widest text-white/30 pr-2">Locked</span>
+                    ) : n === 0 ? (
+                      <button
+                        onClick={() => join(m.id)}
+                        disabled={full}
+                        aria-label={`Seat someone on ${m.label}`}
+                        className="w-9 h-9 rounded-full border border-white/15 text-white/70 grid place-items-center hover:border-[#d4af37] hover:text-[#d4af37] disabled:opacity-30 transition-colors"
+                      >
+                        <Plus size={16} strokeWidth={2.2} />
+                      </button>
+                    ) : (
+                      <div className="flex items-center rounded-full bg-[#d4af37] text-black h-9">
+                        <button onClick={() => leave(m.id)} aria-label={`Send one ${m.label} player home`} className="w-9 h-9 grid place-items-center rounded-full hover:bg-black/10">
+                          <Minus size={16} strokeWidth={2.4} />
+                        </button>
+                        <span className="w-5 text-center font-mono font-bold text-sm tabular-nums">{n}</span>
+                        <button onClick={() => join(m.id)} disabled={full} aria-label={`Seat one more on ${m.label}`} className="w-9 h-9 grid place-items-center rounded-full hover:bg-black/10 disabled:opacity-30">
+                          <Plus size={16} strokeWidth={2.4} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Order button, pinned */}
-      <div className="fixed inset-x-0 bottom-0 z-30 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-[#0b1510] via-[#0b1510]/95 to-transparent">
-        <button
-          onClick={() => onStartGame(config)}
-          disabled={total === 0}
-          className="w-full max-w-md mx-auto flex items-center justify-between px-6 h-14 rounded-2xl bg-[#d4af37] text-black font-semibold shadow-[0_0_40px_rgba(212,175,55,0.25)] disabled:opacity-40 disabled:shadow-none transition-all active:scale-[0.99]"
-        >
-          <span className="tracking-[0.2em] text-sm">DEAL</span>
-          <span className="font-mono text-sm">
-            {total === 0 ? "pick an opponent" : `${total + 1} players · $${stakes.buyIn.toLocaleString()}`}
-          </span>
-        </button>
+      {/* DEAL — the footer, always in view */}
+      <div className="shrink-0 z-30 px-4 md:px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 border-t border-white/10 bg-[#0b1510]/90 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto">
+          <ActionButton
+            onClick={() => onStartGame(config)}
+            disabled={seats.length === 0}
+            variant="gold"
+            className="w-full text-xs md:text-sm tracking-[0.3em] py-5 md:py-6 shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] border-[#d4af37]/50"
+          >
+            {seats.length === 0 ? "SEAT SOMEONE FIRST" : `DEAL · ${seats.length + 1} PLAYERS · ${level.name}`}
+          </ActionButton>
+        </div>
       </div>
     </div>
   );

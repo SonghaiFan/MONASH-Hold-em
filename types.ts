@@ -98,6 +98,7 @@ export interface GameConfig {
   opponentCount: number; // derived from opponentModels when that is set
   aiModel: string; // default OpenRouter model for any opponent without one of its own
   opponentModels?: string[]; // one seat per entry; each AI thinks with its own model
+  opponents?: { name: string; model: string }[]; // named seats; takes precedence over opponentModels
 }
 
 export interface GameState {

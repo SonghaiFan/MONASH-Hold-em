@@ -209,6 +209,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   opponentCount: 5,
   aiModel: AI_MODELS[0].id,
   opponentModels: AI_MODELS.slice(0, 5).map((m) => m.id),
+  opponents: [],
 };
 
 export const generateDeck = (): Card[] => {
@@ -236,18 +237,23 @@ export const initializeGame = (
 ): GameState => {
   const aiPlayers: Player[] = [];
 
-  // Create AI Players — one per chosen brain, or opponentCount copies of the default
-  const brains =
-    config.opponentModels && config.opponentModels.length > 0
-      ? config.opponentModels
-      : Array.from({ length: config.opponentCount }, () => config.aiModel);
+  // Create AI Players — named seats if given, else one per chosen brain, else
+  // opponentCount copies of the default. A person is just a name and a face;
+  // the model is the brain and there is no persona, so what you see is the
+  // model's own style.
+  const seats: { name: string; model: string }[] =
+    config.opponents && config.opponents.length > 0
+      ? config.opponents
+      : (config.opponentModels && config.opponentModels.length > 0
+          ? config.opponentModels
+          : Array.from({ length: config.opponentCount }, () => config.aiModel)
+        ).map((model, i) => {
+          const label = AI_MODELS.find((m) => m.id === model)?.label ?? AI_NAMES[i % AI_NAMES.length];
+          return { name: label, model };
+        });
 
-  for (let i = 0; i < brains.length; i++) {
-    // The seat is the model: named after it, no persona, so what you see is
-    // the model's own style. Duplicate brains get a numeric suffix.
-    const label = AI_MODELS.find((m) => m.id === brains[i])?.label ?? AI_NAMES[i % AI_NAMES.length];
-    const dupes = brains.slice(0, i).filter((b) => b === brains[i]).length;
-    const name = dupes > 0 ? `${label} ${dupes + 1}` : label;
+  for (let i = 0; i < seats.length; i++) {
+    const { name } = seats[i];
     // simple variance in AI stacks (+/- 10%)
     const variance =
       Math.floor(Math.random() * (config.startingStackAI * 0.2)) -
@@ -265,7 +271,7 @@ export const initializeGame = (
       isDealer: false,
       isActive: true,
       currentBet: 0,
-      model: brains[i],
+      model: seats[i].model,
       tilt: 1,
       handStartChips: chips,
     });
