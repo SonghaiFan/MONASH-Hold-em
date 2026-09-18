@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { AI_MODELS, AI_NAMES, DEFAULT_CONFIG } from "../constants";
+import { AI_MODELS, AI_NAMES, DEFAULT_CONFIG, modelCostPerM } from "../constants";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 import { Assignees, Person } from "./Assignees";
@@ -22,16 +22,15 @@ interface GameLevel {
   buyIn: number;
   blindBig: number;
   desc: string;
-  models: string[]; // providers this venue offers, by OpenRouter slug
+  budgetPerM: number; // the dearest provider this venue will pay for, USD per million tokens
 }
 
-const JEV = "~typesafe/jev-latest";
-const DEEPSEEK = "deepseek/deepseek-v4-flash";
-const KIMI = "moonshotai/kimi-k2.5";
-const GEMINI = "google/gemini-2.5-flash-lite";
-const GROK = "x-ai/grok-4.3";
-const CLAUDE = "anthropic/claude-haiku-4.5";
-const GPT = "openai/gpt-5-mini";
+// What each venue serves follows from its budget and OpenRouter's prices:
+// the cheaper the room, the cheaper the brains.
+const menuFor = (venue: GameLevel) =>
+  AI_MODELS.filter((m) => modelCostPerM(m) <= venue.budgetPerM).sort(
+    (a, b) => modelCostPerM(a) - modelCostPerM(b)
+  );
 
 const LEVELS: GameLevel[] = [
   {
@@ -41,7 +40,7 @@ const LEVELS: GameLevel[] = [
     buyIn: 200,
     blindBig: 2,
     desc: "Entry-Level",
-    models: [JEV],
+    budgetPerM: 0.05, // Jev only
   },
   {
     id: "boxhill",
@@ -50,7 +49,7 @@ const LEVELS: GameLevel[] = [
     buyIn: 1000,
     blindBig: 10,
     desc: "Middle-Class",
-    models: [JEV, DEEPSEEK, KIMI],
+    budgetPerM: 1, // + DeepSeek V4 Flash, Gemini Flash Lite
   },
   {
     id: "glen",
@@ -59,7 +58,7 @@ const LEVELS: GameLevel[] = [
     buyIn: 10000,
     blindBig: 100,
     desc: "Family-Stability",
-    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK],
+    budgetPerM: 3, // + GPT-5 mini, Kimi K2.5
   },
   {
     id: "balwyn",
@@ -68,7 +67,7 @@ const LEVELS: GameLevel[] = [
     buyIn: 100000,
     blindBig: 1000,
     desc: "Old Money",
-    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK, CLAUDE],
+    budgetPerM: 4, // + Grok 4.3
   },
   {
     id: "toorak",
@@ -77,7 +76,7 @@ const LEVELS: GameLevel[] = [
     buyIn: 500000,
     blindBig: 5000,
     desc: "Top of the Chain",
-    models: [JEV, DEEPSEEK, KIMI, GEMINI, GROK, CLAUDE, GPT],
+    budgetPerM: Infinity, // everything, Claude Haiku included
   },
 ];
 
@@ -92,7 +91,6 @@ const avatarFor = (name: string) =>
   `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(name)}`;
 
 const modelFor = (id: string) => AI_MODELS.find((m) => m.id === id);
-const venueOffering = (modelId: string) => LEVELS.find((l) => l.models.includes(modelId));
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartGame,
@@ -101,14 +99,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const [selectedLevelId, setSelectedLevelId] = useState<string>(LEVELS[0].id);
   // The default order: one JEV, the only thing the entry venue serves
-  const [seats, setSeats] = useState<Seat[]>([{ id: AI_NAMES[0], model: JEV }]);
+  const [seats, setSeats] = useState<Seat[]>([{ id: AI_NAMES[0], model: AI_MODELS[0].id }]);
 
   const level = LEVELS.find((l) => l.id === selectedLevelId) ?? LEVELS[0];
+  const menu = useMemo(() => menuFor(level), [level]);
 
   // Moving venue sends home anyone whose provider is not on the new menu
   useEffect(() => {
-    setSeats((s) => s.filter((seat) => level.models.includes(seat.model)));
-  }, [level]);
+    setSeats((s) => s.filter((seat) => menu.some((m) => m.id === seat.model)));
+  }, [menu]);
 
   const cast: Person[] = useMemo(
     () =>
@@ -199,7 +198,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   return (
                     <button
                       key={venue.id}
-                      onClick={() => setSelectedLevelId(venue.id)}
+                      onClick={(e) => {
+                        setSelectedLevelId(venue.id);
+                        e.currentTarget.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+                      }}
                       className={`
                                                 relative w-[240px] md:w-[260px] p-6 rounded-2xl border text-left flex flex-col gap-4
                                                 transition-all duration-300 snap-center group
@@ -284,28 +286,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
                   Menu · {level.name}
                 </label>
-                <span className="text-xs text-white/40 mt-1 pl-1">Order a brain and someone sits down with it</span>
+                <span className="text-xs text-white/40 mt-1 pl-1">{menu.length === 1 ? "One provider here" : `${menu.length} providers here`} · order one, someone sits down with it</span>
               </div>
-              <span className="text-[0.65rem] font-mono text-white/35">{seats.length} / {MAX_OPPONENTS}</span>
+              <span className="text-[0.65rem] font-mono text-white/35 shrink-0 whitespace-nowrap pl-3">{seats.length} / {MAX_OPPONENTS}</span>
             </div>
             <div className="rounded-xl bg-black/30 border border-white/5 divide-y divide-white/5">
-              {AI_MODELS.map((m) => {
-                const offered = level.models.includes(m.id);
+              {menu.map((m) => {
                 const n = countOf(m.id);
                 const full = seats.length >= MAX_OPPONENTS;
-                const unlockAt = offered ? null : venueOffering(m.id);
                 return (
-                  <div key={m.id} className={`flex items-center gap-3 px-3 py-3 ${offered ? "" : "opacity-40"}`}>
+                  <div key={m.id} className="flex items-center gap-3 px-3 py-3">
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
                     <div className="min-w-0 flex-1">
                       <span className={`font-mono text-sm tracking-wider ${n ? "text-[#d4af37]" : "text-white"}`}>{m.label}</span>
                       <div className="text-[0.7rem] text-white/35 truncate">
-                        {offered ? m.sub : `Served from ${unlockAt?.name ?? "a better venue"}`}
+                        {m.sub}
+                        <span className="text-white/25"> · ${modelCostPerM(m).toFixed(2)}/M</span>
                       </div>
                     </div>
-                    {!offered ? (
-                      <span className="text-[0.55rem] font-mono uppercase tracking-widest text-white/30 pr-2">Locked</span>
-                    ) : n === 0 ? (
+                    {n === 0 ? (
                       <button
                         onClick={() => join(m.id)}
                         disabled={full}

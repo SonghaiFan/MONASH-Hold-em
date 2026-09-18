@@ -145,9 +145,12 @@ export const AI_PERSONA_BY_NAME: Record<string, keyof typeof PERSONAS> = {
 };
 
 // Models the AI opponents can run on, all via OpenRouter.
+// Prices are USD per million tokens as listed by OpenRouter on 2026-09-18
+// (Jev's from its Decisions API page); venues use them to build their menus.
 export const AI_MODELS: AIModelOption[] = [
   {
     id: "~typesafe/jev-latest",
+    pricePerM: { input: 0.042, output: 0 },
     label: "JEV",
     sub: "Decisions · fastest",
     kind: "decisions",
@@ -155,6 +158,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "google/gemini-2.5-flash-lite",
+    pricePerM: { input: 0.1, output: 0.4 },
     label: "GEMINI",
     sub: "2.5 Flash Lite",
     kind: "chat",
@@ -162,6 +166,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "anthropic/claude-haiku-4.5",
+    pricePerM: { input: 1.0, output: 5.0 },
     label: "CLAUDE",
     sub: "Haiku 4.5",
     kind: "chat",
@@ -169,6 +174,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "openai/gpt-5-mini",
+    pricePerM: { input: 0.25, output: 2.0 },
     label: "GPT",
     sub: "5 mini · thinks, ~13s",
     kind: "chat",
@@ -177,6 +183,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "x-ai/grok-4.3",
+    pricePerM: { input: 1.25, output: 2.5 },
     label: "GROK",
     sub: "4.3 · no thinking",
     kind: "chat",
@@ -185,6 +192,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "deepseek/deepseek-v4-flash",
+    pricePerM: { input: 0.089, output: 0.177 },
     label: "DEEPSEEK",
     sub: "V4 Flash · no thinking",
     kind: "chat",
@@ -193,6 +201,7 @@ export const AI_MODELS: AIModelOption[] = [
   },
   {
     id: "moonshotai/kimi-k2.5",
+    pricePerM: { input: 0.45, output: 2.25 },
     label: "KIMI",
     sub: "K2.5 · no thinking",
     kind: "chat",
@@ -200,6 +209,9 @@ export const AI_MODELS: AIModelOption[] = [
     color: "#ff6fa8",
   },
 ];
+
+// What a model costs to run, per million tokens in and out together.
+export const modelCostPerM = (m: AIModelOption) => m.pricePerM.input + m.pricePerM.output;
 
 export const DEFAULT_CONFIG: GameConfig = {
   playerName: "Player",
