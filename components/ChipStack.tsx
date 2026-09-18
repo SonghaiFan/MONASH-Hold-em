@@ -8,7 +8,7 @@ interface ChipStackProps {
 const CHIP_RADIUS = 16; 
 
 // Expanded Chip Colors for all Tiers
-const CHIP_COLORS: Record<number, string> = {
+export const CHIP_COLORS: Record<number, string> = {
     100000: '#6366f1', // Indigo ($100k)
     25000: '#06b6d4',  // Cyan ($25k)
     5000: '#94a3b8',   // Platinum ($5k)
@@ -20,10 +20,10 @@ const CHIP_COLORS: Record<number, string> = {
     1: '#e2e8f0',      // White/Grey ($1)
 };
 
-const DENOMINATIONS = [100000, 25000, 5000, 1000, 500, 100, 25, 5, 1];
+export const DENOMINATIONS = [100000, 25000, 5000, 1000, 500, 100, 25, 5, 1];
 
 // Helper to breakdown an amount into chip counts
-const calculateChipCounts = (total: number) => {
+export const calculateChipCounts = (total: number) => {
     let remaining = total;
     const counts: { value: number; count: number }[] = [];
     const MAX_CHIPS_PER_BATCH = 60; 
