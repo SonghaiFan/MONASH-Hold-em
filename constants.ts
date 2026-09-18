@@ -6,6 +6,7 @@ import {
   Suit,
   GameConfig,
   Persona,
+  AIModelOption,
 } from "./types";
 
 export const INITIAL_STACK_HUMAN = 10000;
@@ -127,12 +128,41 @@ export const AI_PERSONA_BY_NAME: Record<string, keyof typeof PERSONAS> = {
   Felix: "STATION",
 };
 
+// Models the AI opponents can run on, all via OpenRouter.
+export const AI_MODELS: AIModelOption[] = [
+  {
+    id: "~typesafe/jev-latest",
+    label: "JEV",
+    sub: "Decisions · ~100ms",
+    kind: "decisions",
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    label: "GEMINI",
+    sub: "2.5 Flash Lite",
+    kind: "chat",
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    label: "CLAUDE",
+    sub: "Haiku 4.5",
+    kind: "chat",
+  },
+  {
+    id: "openai/gpt-5-mini",
+    label: "GPT",
+    sub: "5 mini",
+    kind: "chat",
+  },
+];
+
 export const DEFAULT_CONFIG: GameConfig = {
   playerName: "Player",
   startingStackHuman: INITIAL_STACK_HUMAN,
   startingStackAI: INITIAL_STACK_AI_AVG,
   blindBig: BLIND_BIG,
   opponentCount: 5,
+  aiModel: AI_MODELS[0].id,
 };
 
 export const generateDeck = (): Card[] => {

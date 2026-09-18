@@ -78,12 +78,22 @@ export interface WinningHand {
   potDetails?: string; // e.g., "Main Pot ($200)" or "Side Pot ($500)"
 }
 
+export type AIModelKind = "decisions" | "chat";
+
+export interface AIModelOption {
+  id: string; // OpenRouter model slug
+  label: string;
+  sub: string;
+  kind: AIModelKind; // "decisions" = TypeSafe Decisions API, "chat" = OpenAI-compatible chat completions
+}
+
 export interface GameConfig {
   playerName?: string; // Added for login flow
   startingStackHuman: number;
   startingStackAI: number;
   blindBig: number;
   opponentCount: number;
+  aiModel: string; // OpenRouter model slug driving the AI opponents
 }
 
 export interface GameState {

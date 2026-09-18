@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DEFAULT_CONFIG } from "../constants";
+import { AI_MODELS, DEFAULT_CONFIG } from "../constants";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 
@@ -92,6 +92,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const handleOpponentChange = (val: number) => {
     setConfig((prev) => ({ ...prev, opponentCount: val }));
+  };
+
+  const handleModelChange = (id: string) => {
+    setConfig((prev) => ({ ...prev, aiModel: id }));
   };
 
   // Safe access with fallback (though fallback shouldn't be needed with correct initial state)
@@ -277,6 +281,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         }`}
                     >
                       {size.desc}
+                    </span>
+
+                    {isSelected && (
+                      <div className="absolute inset-0 border border-[#d4af37] rounded-xl animate-pulse opacity-20" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* OPPONENT BRAIN (Model Provider) */}
+          <div className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex flex-col mb-4">
+              <label className="text-[0.6rem] font-bold uppercase tracking-widest text-[#666] font-sans pl-1">
+                Opponent Brain
+              </label>
+              <span className="text-xs text-white/40 mt-1 pl-1">
+                Which model the AI players think with (via OpenRouter)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {AI_MODELS.map((model) => {
+                const isSelected = config.aiModel === model.id;
+                return (
+                  <button
+                    key={model.id}
+                    onClick={() => handleModelChange(model.id)}
+                    title={model.id}
+                    className={`
+                      relative flex flex-col items-center justify-center py-4 px-2 rounded-xl border transition-all duration-300 group
+                      ${isSelected
+                        ? "bg-[#d4af37]/10 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.15)]"
+                        : "bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/20"
+                      }
+                    `}
+                  >
+                    <span
+                      className={`text-sm md:text-base font-mono font-bold tracking-wider mb-1 ${isSelected
+                        ? "text-[#d4af37]"
+                        : "text-white/40 group-hover:text-white/60"
+                        }`}
+                    >
+                      {model.label}
+                    </span>
+                    <span
+                      className={`text-[0.5rem] font-mono ${isSelected ? "text-[#d4af37]/60" : "text-white/20"
+                        }`}
+                    >
+                      {model.sub}
+                    </span>
+                    <span
+                      className={`mt-1 text-[0.45rem] uppercase tracking-[0.2em] font-bold ${isSelected ? "text-white/60" : "text-white/20"
+                        }`}
+                    >
+                      {model.kind === "decisions" ? "probabilities" : "chat + json"}
                     </span>
 
                     {isSelected && (

@@ -598,7 +598,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     highBet,
                     config.blindBig,
                     gameState.handHistory,
-                    activePlayer.reasoningHistory
+                    activePlayer.reasoningHistory,
+                    config.aiModel
                 );
 
                 console.group(`🤖 AI Decision: ${activePlayer.name}`);
@@ -628,7 +629,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
 
             makeAIMove();
         }
-    }, [gameState.activePlayerId, gameState.players, gameState.phase, gameState.pot, gameState.board, handlePlayerAction, gameState.isRunningOut, config.blindBig, gameState.handHistory]);
+    }, [gameState.activePlayerId, gameState.players, gameState.phase, gameState.pot, gameState.board, handlePlayerAction, gameState.isRunningOut, config.blindBig, config.aiModel, gameState.handHistory]);
 
     // Derived State
     const humanPlayer = gameState.players.find(p => p.isHuman);
