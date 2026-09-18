@@ -3,6 +3,7 @@ import Matter from 'matter-js';
 
 interface ChipStackProps {
     amount: number;
+    chipRadius?: number; // the table uses the default; smaller stacks (menus) pass their own
 }
 
 const CHIP_RADIUS = 16; 
@@ -43,7 +44,7 @@ export const calculateChipCounts = (total: number) => {
     return counts;
 };
 
-export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
+export const ChipStack: React.FC<ChipStackProps> = ({ amount, chipRadius = CHIP_RADIUS }) => {
     const sceneRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<Matter.Engine | null>(null);
@@ -67,6 +68,10 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
         const engine = Engine.create();
         const world = engine.world;
         engineRef.current = engine;
+        // A fresh world holds no chips: forget what the previous one had, so the
+        // amount effect below re-spawns the stack (StrictMode remounts, HMR)
+        chipsRef.current = [];
+        prevAmountRef.current = 0;
 
         const width = sceneRef.current.clientWidth;
         const height = sceneRef.current.clientHeight;
@@ -248,7 +253,7 @@ export const ChipStack: React.FC<ChipStackProps> = ({ amount }) => {
                 for (let i = 0; i < count; i++) {
                     const x = Math.random() * (width - 40) + 20;
                     const y = -100 - (Math.random() * 500); 
-                    const body = Matter.Bodies.circle(x, y, CHIP_RADIUS, {
+                    const body = Matter.Bodies.circle(x, y, chipRadius, {
                         restitution: 0.5,
                         friction: 0.05,
                         density: 0.002,

@@ -5,7 +5,6 @@ import { STARTING_WEALTH } from "../services/bankroll";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 import { Assignees, Person } from "./Assignees";
-import { CostChips } from "./CostChips";
 
 // Table setup in three layers: the VENUE decides which model providers are
 // on the menu; ordering from the menu seats a PERSON — a name and a face —
@@ -336,12 +335,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
                     <div className="min-w-0 flex-1">
                       <span className={`font-mono text-sm tracking-wider ${n ? "text-[#d4af37]" : "text-white"}`}>{m.label}</span>
-                      <div className="text-[0.7rem] text-white/35 truncate">{m.sub}</div>
-                    </div>
-                    {/* the price, in chips: one chip per cent per million tokens */}
-                    <div className="flex flex-col items-end gap-1 shrink-0 pr-1" title={`$${modelCostPerM(m).toFixed(2)} per million tokens`}>
-                      <CostChips dollarsPerM={modelCostPerM(m)} />
-                      <span className="text-[0.6rem] font-mono text-white/30 tabular-nums">${modelCostPerM(m).toFixed(2)}/M</span>
+                      <div className="text-[0.7rem] text-white/35 truncate">
+                        {m.sub}
+                        <span className="text-white/25"> · ${modelCostPerM(m).toFixed(2)}/M</span>
+                      </div>
                     </div>
                     {n === 0 ? (
                       <button
