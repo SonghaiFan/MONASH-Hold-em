@@ -1,5 +1,5 @@
 import { Card, GamePhase, Persona, Player } from "../types";
-import { AI_MODELS, PERSONAS } from "../constants";
+import { AI_MODELS, RAW_PERSONA } from "../constants";
 import { ModelJudgement, runModel } from "./aiProviders";
 import {
   ActionOption,
@@ -101,7 +101,7 @@ const buildReasoning = (
 ): string => {
   const parts: string[] = [];
 
-  parts.push(tilt > 1.05 ? `${persona.label} (tilted x${tilt.toFixed(1)})` : persona.label);
+  if (persona.label) parts.push(tilt > 1.05 ? `${persona.label} (tilted x${tilt.toFixed(1)})` : persona.label);
   parts.push(
     situation.potOdds > 0
       ? `Equity ${situation.equity.toFixed(0)}% vs odds ${situation.potOdds.toFixed(0)}%`
@@ -189,7 +189,7 @@ export const getAIDecision = async (
   reasoningHistory: string[] = [],
   modelId: string = AI_MODELS[0].id
 ): Promise<AIDecision> => {
-  const persona = activePlayer.persona ?? PERSONAS.TAG;
+  const persona = activePlayer.persona ?? RAW_PERSONA;
   const tilt = activePlayer.tilt ?? 1;
 
   const situation = buildSituation(

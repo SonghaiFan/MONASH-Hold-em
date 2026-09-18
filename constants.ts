@@ -114,7 +114,23 @@ export const PERSONAS: Record<string, Persona> = {
   },
 };
 
+// No warp at all: sample straight from the model's own distribution, so a
+// seat shows the model's native style. This is what the game and the arena
+// use; the archetypes above are kept for anyone who wants to opt back in.
+export const RAW_PERSONA: Persona = {
+  id: "RAW",
+  label: "",
+  description: "The model's own distribution, unmodified",
+  aggression: 1,
+  looseness: 1,
+  bluffFreq: 0,
+  sizing: "standard",
+  temperature: 1,
+  tiltFactor: 1,
+};
+
 // Fixed name -> personality so the same opponent always plays the same way.
+// Not applied by default any more (see RAW_PERSONA); kept for opt-in use.
 export const AI_PERSONA_BY_NAME: Record<string, keyof typeof PERSONAS> = {
   Marcus: "TAG",
   Sarah: "NIT",
@@ -227,7 +243,11 @@ export const initializeGame = (
       : Array.from({ length: config.opponentCount }, () => config.aiModel);
 
   for (let i = 0; i < brains.length; i++) {
-    let name = AI_NAMES[i % AI_NAMES.length];
+    // The seat is the model: named after it, no persona, so what you see is
+    // the model's own style. Duplicate brains get a numeric suffix.
+    const label = AI_MODELS.find((m) => m.id === brains[i])?.label ?? AI_NAMES[i % AI_NAMES.length];
+    const dupes = brains.slice(0, i).filter((b) => b === brains[i]).length;
+    const name = dupes > 0 ? `${label} ${dupes + 1}` : label;
     // simple variance in AI stacks (+/- 10%)
     const variance =
       Math.floor(Math.random() * (config.startingStackAI * 0.2)) -
@@ -245,7 +265,6 @@ export const initializeGame = (
       isDealer: false,
       isActive: true,
       currentBet: 0,
-      persona: PERSONAS[AI_PERSONA_BY_NAME[name] ?? "TAG"],
       model: brains[i],
       tilt: 1,
       handStartChips: chips,

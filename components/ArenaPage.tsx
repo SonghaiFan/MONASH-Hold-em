@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AI_MODELS } from "../constants";
-import { GamePhase, Persona, Player } from "../types";
+import { AI_MODELS, RAW_PERSONA } from "../constants";
+import { GamePhase, Player } from "../types";
 import {
   EngineState,
   applyAction,
@@ -25,20 +25,6 @@ import { ActionButton } from "./ActionButton";
 interface ArenaPageProps {
   onExit: () => void;
 }
-
-// No persona warp: sample straight from the model's own distribution so the
-// table shows each model's native style.
-const RAW: Persona = {
-  id: "RAW",
-  label: "RAW",
-  description: "Model's own distribution, unmodified",
-  aggression: 1,
-  looseness: 1,
-  bluffFreq: 0,
-  sizing: "standard",
-  temperature: 1,
-  tiltFactor: 1,
-};
 
 const STARTING_CHIPS = 10000;
 const BIG_BLIND = 200;
@@ -205,7 +191,7 @@ export const ArenaPage: React.FC<ArenaPageProps> = ({ onExit }) => {
           try {
             if (!API_KEY) throw new Error("OPENROUTER_API_KEY is not set");
             const trace = await runModel(situation, me.model!, API_KEY);
-            const decision = decideWithPersona(situation, trace.judgement, RAW, 1);
+            const decision = decideWithPersona(situation, trace.judgement, RAW_PERSONA, 1);
             return {
               decision,
               latencyMs: trace.latencyMs,
