@@ -3,11 +3,10 @@ import { TextureOverlay } from './components/TextureOverlay';
 import { LoginPage } from './components/LoginPage';
 import { LandingPage } from './components/LandingPage';
 import { PokerGame } from './components/PokerGame';
-import { ArenaPage } from './components/ArenaPage';
 import { GameConfig } from './types';
 import { DEFAULT_CONFIG } from './constants';
 
-type ViewState = 'LOGIN' | 'SETUP' | 'GAME' | 'ARENA';
+type ViewState = 'LOGIN' | 'SETUP' | 'GAME';
 
 function App() {
     const [view, setView] = useState<ViewState>('LOGIN');
@@ -42,10 +41,6 @@ function App() {
         });
     };
 
-    const handleStartArena = () => {
-        transitionTo('ARENA');
-    };
-
     const handleExitGame = () => {
         // Transition: Game -> Setup
         // Note: PokerGame doesn't have an explicit exit animation prop yet, 
@@ -71,14 +66,9 @@ function App() {
                 {view === 'SETUP' && (
                     <LandingPage 
                         onStartGame={handleStartGame} 
-                        onStartArena={handleStartArena}
                         username={user} 
                         isExiting={isExiting}
                     />
-                )}
-
-                {view === 'ARENA' && (
-                    <ArenaPage onExit={handleExitGame} />
                 )}
 
                 {view === 'GAME' && (
