@@ -5,6 +5,7 @@ import { ActionButton } from "./ActionButton";
 
 interface LandingPageProps {
   onStartGame: (config: GameConfig) => void;
+  onStartArena: () => void;
   username: string | null;
   isExiting?: boolean;
 }
@@ -63,6 +64,7 @@ const LEVELS: GameLevel[] = [
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartGame,
+  onStartArena,
   username,
   isExiting,
 }) => {
@@ -358,6 +360,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               INITIATE: {selectedLevel.name}
             </ActionButton>
+            <button
+              onClick={onStartArena}
+              className="w-full mt-3 py-3 rounded-xl border border-white/10 bg-black/30 text-[0.6rem] md:text-xs tracking-[0.3em] uppercase text-white/50 hover:text-white hover:border-white/30 transition-all"
+            >
+              Or watch the models play each other · Arena
+            </button>
           </div>
         </div>
       </div>

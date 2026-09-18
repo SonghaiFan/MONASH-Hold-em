@@ -38,8 +38,11 @@ export interface ModelTrace {
   latencyMs: number;
 }
 
+export const modelOptionFor = (modelId: string) =>
+  AI_MODELS.find((m) => m.id === modelId);
+
 export const modelKindFor = (modelId: string): AIModelKind =>
-  AI_MODELS.find((m) => m.id === modelId)?.kind ?? "chat";
+  modelOptionFor(modelId)?.kind ?? "chat";
 
 const headers = (apiKey: string) => ({
   Authorization: `Bearer ${apiKey}`,
@@ -191,6 +194,7 @@ export const buildChatRequest = (situation: Situation, modelId: string) => {
     required.push("raise_size_probabilities");
   }
 
+  const reasoning = modelOptionFor(modelId)?.reasoning;
   return {
     model: modelId,
     messages: [
@@ -206,6 +210,11 @@ export const buildChatRequest = (situation: Situation, modelId: string) => {
       },
     },
     temperature: 0.2,
+    ...(reasoning === "off"
+      ? { reasoning: { enabled: false } }
+      : reasoning
+        ? { reasoning: { effort: reasoning } }
+        : {}),
   };
 };
 

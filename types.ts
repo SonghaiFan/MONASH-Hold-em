@@ -86,6 +86,8 @@ export interface AIModelOption {
   label: string;
   sub: string;
   kind: AIModelKind; // "decisions" = TypeSafe Decisions API, "chat" = OpenAI-compatible chat completions
+  reasoning?: "off" | "low" | "medium" | "high"; // chat models that think: switch it off or cap the effort to keep the table moving
+  color?: string; // seat colour in the arena
 }
 
 export interface GameConfig {

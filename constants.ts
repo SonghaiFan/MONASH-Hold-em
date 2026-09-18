@@ -133,26 +133,55 @@ export const AI_MODELS: AIModelOption[] = [
   {
     id: "~typesafe/jev-latest",
     label: "JEV",
-    sub: "Decisions · ~100ms",
+    sub: "Decisions · fastest",
     kind: "decisions",
+    color: "#d4af37",
   },
   {
     id: "google/gemini-2.5-flash-lite",
     label: "GEMINI",
     sub: "2.5 Flash Lite",
     kind: "chat",
+    color: "#4f8cff",
   },
   {
     id: "anthropic/claude-haiku-4.5",
     label: "CLAUDE",
     sub: "Haiku 4.5",
     kind: "chat",
+    color: "#d97a4a",
   },
   {
     id: "openai/gpt-5-mini",
     label: "GPT",
-    sub: "5 mini",
+    sub: "5 mini · thinks, ~13s",
     kind: "chat",
+    reasoning: "low", // OpenRouter: reasoning is mandatory for this model
+    color: "#5fd0a0",
+  },
+  {
+    id: "x-ai/grok-4.3",
+    label: "GROK",
+    sub: "4.3 · no thinking",
+    kind: "chat",
+    reasoning: "off",
+    color: "#e8e8e8",
+  },
+  {
+    id: "deepseek/deepseek-v4-flash",
+    label: "DEEPSEEK",
+    sub: "V4 Flash · no thinking",
+    kind: "chat",
+    reasoning: "off",
+    color: "#7c6cff",
+  },
+  {
+    id: "moonshotai/kimi-k2.5",
+    label: "KIMI",
+    sub: "K2.5 · no thinking",
+    kind: "chat",
+    reasoning: "off",
+    color: "#ff6fa8",
   },
 ];
 
