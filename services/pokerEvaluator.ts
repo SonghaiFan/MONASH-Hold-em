@@ -344,3 +344,61 @@ export const determineWinner = (
     isSplit,
   };
 };
+
+const ALL_SUITS = [Suit.Hearts, Suit.Diamonds, Suit.Clubs, Suit.Spades];
+
+/**
+ * Monte Carlo estimate of a hand's chance to win at showdown against
+ * `opponentCount` random hands, given the currently visible board.
+ * Returns a percentage (0-100). Ties are credited as a fractional win.
+ */
+export const estimateEquity = (
+  hand: Card[],
+  board: Card[],
+  opponentCount: number,
+  iterations = 250
+): number => {
+  if (hand.length !== 2 || opponentCount < 1) return 0;
+
+  const known = new Set([...hand, ...board].map((c) => `${normalizeRank(c.rank)}${c.suit}`));
+  const remaining: Card[] = [];
+  ALL_SUITS.forEach((suit) => {
+    RANKS.forEach((rank) => {
+      const key = `${rank}${suit}`;
+      if (!known.has(key)) remaining.push({ rank, suit, id: key });
+    });
+  });
+
+  const boardNeeded = 5 - board.length;
+  const cardsNeeded = boardNeeded + opponentCount * 2;
+  if (cardsNeeded > remaining.length) return 0;
+
+  let equity = 0;
+  for (let iter = 0; iter < iterations; iter++) {
+    // Partial Fisher-Yates: only shuffle as many cards as we need to deal
+    for (let i = 0; i < cardsNeeded; i++) {
+      const j = i + Math.floor(Math.random() * (remaining.length - i));
+      [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+    }
+
+    const fullBoard = [...board, ...remaining.slice(0, boardNeeded)];
+    const heroRank = evaluateHand([...hand, ...fullBoard]);
+
+    let heroBeaten = false;
+    let tiedWith = 0;
+    for (let o = 0; o < opponentCount; o++) {
+      const offset = boardNeeded + o * 2;
+      const oppHand = [remaining[offset], remaining[offset + 1]];
+      const cmp = compareHandRanks(heroRank, evaluateHand([...oppHand, ...fullBoard]));
+      if (cmp > 0) {
+        heroBeaten = true;
+        break;
+      }
+      if (cmp === 0) tiedWith++;
+    }
+
+    if (!heroBeaten) equity += 1 / (tiedWith + 1);
+  }
+
+  return (equity / iterations) * 100;
+};

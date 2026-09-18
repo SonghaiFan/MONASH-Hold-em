@@ -3,7 +3,7 @@ import { AIStratum } from './AIStratum';
 import { TableStratum } from './TableStratum';
 import { PlayerStratum } from './PlayerStratum';
 import { generateDeck, initializeGame } from '../constants';
-import { GamePhase, GameState, PlayerAction, GameConfig } from '../types';
+import { GamePhase, GameState, PlayerAction, GameConfig, Player } from '../types';
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
 import { ActionButton } from './ActionButton';
@@ -98,6 +98,19 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             const newDealerRealIndex = activePlayerIndices[currentActiveDealerIndex];
             const activeCount = activePlayerIndices.length;
 
+            // Tilt: an AI that just lost a big pot gets more aggressive for a few hands, then cools off
+            const nextTilt = (p: Player): Pick<Player, 'tilt' | 'handStartChips'> => {
+                if (p.isHuman || !p.persona) return { tilt: 1, handStartChips: p.chips };
+                const start = p.handStartChips ?? p.chips;
+                const lost = start - p.chips;
+                const bigLoss = lost > 0 && (lost >= config.blindBig * 20 || lost >= start * 0.3);
+                const cooled = 1 + ((p.tilt ?? 1) - 1) * 0.5;
+                return {
+                    tilt: bigLoss ? Math.max(cooled, p.persona.tiltFactor) : cooled,
+                    handStartChips: p.chips
+                };
+            };
+
             // 3. Assign Roles & Positions
             const updatedPlayers = prevState.players.map((p, i) => {
                 const isEliminated = p.chips <= 0;
@@ -133,7 +146,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     position: positionLabel,
                     isDealer: isDealer,
                     currentBet: 0,
-                    reasoningHistory: []
+                    reasoningHistory: [],
+                    ...nextTilt(p)
                 };
             });
 

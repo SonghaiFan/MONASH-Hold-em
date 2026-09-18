@@ -22,6 +22,21 @@ export type PlayerAction =
   | "ALL-IN"
   | "ELIMINATED";
 
+// How an AI opponent deviates from the "objectively correct" play.
+// The decision model answers what the spot calls for; the persona warps the
+// resulting probability distribution before we sample an action from it.
+export interface Persona {
+  id: string;
+  label: string; // Short tag shown in the UI, e.g. "LAG"
+  description: string;
+  aggression: number; // Multiplier on raise probability (>1 raises more)
+  looseness: number; // Divisor on fold probability (>1 folds less)
+  bluffFreq: number; // Extra raise weight added when hand strength is weak
+  sizing: "small" | "standard" | "big"; // Preferred bet sizing
+  temperature: number; // Sampling temperature: low = consistent, high = erratic
+  tiltFactor: number; // Aggression multiplier applied after losing a big pot
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -34,6 +49,9 @@ export interface Player {
   isActive: boolean; // True if in the hand (not folded)
   currentBet: number; // Amount contributed in current street
   reasoningHistory?: string[]; // AI's internal thought process history
+  persona?: Persona; // AI only
+  tilt?: number; // AI only: current aggression multiplier from recent losses (1 = calm)
+  handStartChips?: number; // AI only: stack at the start of the current hand, for tilt tracking
 }
 
 export enum GamePhase {

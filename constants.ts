@@ -1,4 +1,12 @@
-import { Card, GameState, Player, GamePhase, Suit, GameConfig } from "./types";
+import {
+  Card,
+  GameState,
+  Player,
+  GamePhase,
+  Suit,
+  GameConfig,
+  Persona,
+} from "./types";
 
 export const INITIAL_STACK_HUMAN = 10000;
 export const INITIAL_STACK_AI_AVG = 5000;
@@ -35,6 +43,89 @@ export const AI_NAMES = [
   "Oliver",
   "Felix",
 ];
+
+export const PERSONAS: Record<string, Persona> = {
+  TAG: {
+    id: "TAG",
+    label: "TAG",
+    description: "Tight-aggressive regular: solid ranges, bets for value, rarely out of line.",
+    aggression: 1.2,
+    looseness: 0.9,
+    bluffFreq: 0.08,
+    sizing: "standard",
+    temperature: 0.7,
+    tiltFactor: 1.2,
+  },
+  LAG: {
+    id: "LAG",
+    label: "LAG",
+    description: "Loose-aggressive: plays many hands, applies pressure, bluffs often.",
+    aggression: 1.7,
+    looseness: 1.5,
+    bluffFreq: 0.25,
+    sizing: "big",
+    temperature: 1.0,
+    tiltFactor: 1.4,
+  },
+  NIT: {
+    id: "NIT",
+    label: "NIT",
+    description: "The rock: folds almost everything, only shows up with premiums.",
+    aggression: 0.8,
+    looseness: 0.5,
+    bluffFreq: 0.02,
+    sizing: "standard",
+    temperature: 0.5,
+    tiltFactor: 1.1,
+  },
+  STATION: {
+    id: "STATION",
+    label: "STN",
+    description: "Calling station: hates folding, rarely raises, will pay you off.",
+    aggression: 0.4,
+    looseness: 2.2,
+    bluffFreq: 0,
+    sizing: "small",
+    temperature: 0.8,
+    tiltFactor: 1.3,
+  },
+  MANIAC: {
+    id: "MANIAC",
+    label: "MNC",
+    description: "Maniac: raises everything, overbets, lives on the edge.",
+    aggression: 2.5,
+    looseness: 2.0,
+    bluffFreq: 0.4,
+    sizing: "big",
+    temperature: 1.3,
+    tiltFactor: 1.6,
+  },
+  FISH: {
+    id: "FISH",
+    label: "FSH",
+    description: "Recreational: loose, unpredictable, chases draws, tilts easily.",
+    aggression: 0.9,
+    looseness: 1.6,
+    bluffFreq: 0.1,
+    sizing: "small",
+    temperature: 1.6,
+    tiltFactor: 1.5,
+  },
+};
+
+// Fixed name -> personality so the same opponent always plays the same way.
+export const AI_PERSONA_BY_NAME: Record<string, keyof typeof PERSONAS> = {
+  Marcus: "TAG",
+  Sarah: "NIT",
+  David: "STATION",
+  Elena: "LAG",
+  James: "MANIAC",
+  Jocelyn: "TAG",
+  Luna: "FISH",
+  Viktor: "LAG",
+  Oliver: "NIT",
+  Felix: "STATION",
+};
 
 export const DEFAULT_CONFIG: GameConfig = {
   playerName: "Player",
@@ -89,6 +180,9 @@ export const initializeGame = (
       isDealer: false,
       isActive: true,
       currentBet: 0,
+      persona: PERSONAS[AI_PERSONA_BY_NAME[name] ?? "TAG"],
+      tilt: 1,
+      handStartChips: chips,
     });
   }
 

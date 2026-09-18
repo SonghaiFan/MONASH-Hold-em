@@ -298,11 +298,23 @@ export const AIStratum: React.FC<AIStratumProps> = ({
 
                                     <div className="mt-1 border-t border-white/5 pt-2 w-full">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span
-                                                className={`font-medium text-xs truncate max-w-[70px] ${isFolded ? "text-[#777]" : "text-white"
-                                                    }`}
-                                            >
-                                                {p.name}
+                                            <span className="flex items-baseline gap-1 min-w-0">
+                                                <span
+                                                    className={`font-medium text-xs truncate max-w-[70px] ${isFolded ? "text-[#777]" : "text-white"
+                                                        }`}
+                                                >
+                                                    {p.name}
+                                                </span>
+                                                {p.persona && (
+                                                    <span
+                                                        className={`text-[0.55rem] font-mono tracking-wider shrink-0 ${isFolded ? "text-[#555]" : "text-[#d4af37]/70"
+                                                            }`}
+                                                        title={`${p.persona.description}${(p.tilt ?? 1) > 1.05 ? " (on tilt)" : ""}`}
+                                                    >
+                                                        {p.persona.label}
+                                                        {(p.tilt ?? 1) > 1.05 && "🔥"}
+                                                    </span>
+                                                )}
                                             </span>
                                             <span
                                                 className={`font-mono text-xs ${isEliminated ? "text-red-800" : "text-[#a3a3a3]"

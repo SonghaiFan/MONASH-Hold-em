@@ -1,7 +1,17 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { Card, GamePhase, Player } from "../types";
+import { Card, GamePhase, Persona, Player } from "../types";
+import { PERSONAS } from "../constants";
+import { estimateEquity } from "./pokerEvaluator";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// TypeSafe Jev via OpenRouter's Decisions API.
+// Jev does not generate text: it answers typed questions (choice / score / noul)
+// about a state object and returns calibrated probabilities. Our code owns the
+// workflow: we compute equity locally, offer only legal actions, warp the
+// returned distribution with the player's persona, sample an action from it,
+// and synthesise a short "reasoning" line for the log.
+const DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
+const MODEL = "~typesafe/jev-latest";
+const API_KEY = process.env.OPENROUTER_API_KEY;
+const EQUITY_ITERATIONS = 250;
 
 interface AIDecision {
   action: "fold" | "check" | "call" | "raise";
@@ -9,15 +19,62 @@ interface AIDecision {
   reasoning?: string;
 }
 
+type ActionOption = AIDecision["action"];
+type RaiseSizeOption = "min" | "half_pot" | "pot" | "all_in";
+
+interface ChoiceQuestion {
+  type: "choice";
+  instructions: string;
+  criteria: Record<string, string>;
+}
+
+interface ScoreQuestion {
+  type: "score";
+  instructions: string;
+  criteria: string[];
+}
+
+interface ChoiceAnswer {
+  choice: string;
+  probabilities?: Record<string, number>;
+  confidence?: number;
+}
+
+interface ScoreAnswer {
+  score: number;
+  probabilities?: number[];
+  confidence?: number;
+}
+
+interface DecisionAnswers {
+  action?: ChoiceAnswer;
+  raise_size?: ChoiceAnswer;
+  hand_strength?: ScoreAnswer;
+}
+
+const HAND_STRENGTH_LEVELS = [
+  "Air: no pair, no draw, negligible showdown value (preflop: junk offsuit hands)",
+  "Weak: bottom pair, ace-high, or a gutshot only (preflop: weak aces, low offsuit broadways)",
+  "Medium: middle pair, top pair with a weak kicker, or a single strong draw such as an open-ender or flush draw (preflop: suited connectors, small pairs, suited broadways)",
+  "Strong: top pair with a good kicker, an overpair, two pair, or a combo draw (preflop: TT-JJ, AQ, AJs, KQs)",
+  "Monster: a set, straight, flush or better, or a nut draw plus a made hand (preflop: QQ+, AK)",
+];
+const WEAK_HAND_THRESHOLD = 1.5; // hand_strength at or below this counts as a bluffing hand
+
+// Multipliers applied to the raise_size distribution per sizing preference
+const SIZING_WEIGHTS: Record<Persona["sizing"], Record<RaiseSizeOption, number>> = {
+  small: { min: 2.0, half_pot: 1.3, pot: 0.7, all_in: 0.4 },
+  standard: { min: 1.0, half_pot: 1.0, pot: 1.0, all_in: 1.0 },
+  big: { min: 0.5, half_pot: 0.8, pot: 1.5, all_in: 1.4 },
+};
+
 const formatCards = (cards: Card[]) =>
-  cards.map((c) => `${c.rank}${c.suit}`).join("");
+  cards.map((c) => `${c.rank}${c.suit}`).join(" ");
 
 // Helper: Calculate standard Pot Odds
-const calculatePotOdds = (toCall: number, currentPot: number): string => {
-  if (toCall <= 0) return "0% (Free Check)";
-  const finalPot = currentPot + toCall;
-  const percentage = (toCall / finalPot) * 100;
-  return `${percentage.toFixed(1)}%`;
+const calculatePotOdds = (toCall: number, currentPot: number): number => {
+  if (toCall <= 0) return 0;
+  return (toCall / (currentPot + toCall)) * 100;
 };
 
 // Helper: Sort players by action order for the current street
@@ -38,6 +95,150 @@ const getSortedPlayersByActionOrder = (
   return sorted;
 };
 
+const describeStatus = (p: Player): string => {
+  if (p.status === "ELIMINATED") return "Eliminated";
+  if (p.status === "ALL-IN") return `All-in for $${p.currentBet}`;
+  if (p.status === "CHECKED") return "Checked";
+  if (p.status === "CALLED") return `Called $${p.currentBet}`;
+  if (p.status === "RAISED") return `Raised to $${p.currentBet}`;
+  // WAITING / THINKING / ACTING
+  return p.currentBet > 0
+    ? `Posted $${p.currentBet}, yet to act`
+    : "Yet to act";
+};
+
+const snapToBlind = (amount: number, bigBlind: number) =>
+  Math.round(amount / bigBlind) * bigBlind;
+
+// Builds the raise-size menu the model can pick from, each mapped to a total bet.
+// Sizes that collapse into each other (short stacks) are de-duplicated.
+const buildRaiseSizes = (
+  pot: number,
+  toCall: number,
+  currentHighBet: number,
+  minRaiseTotal: number,
+  maxTotal: number,
+  bigBlind: number
+): Partial<Record<RaiseSizeOption, number>> => {
+  const potAfterCall = pot + toCall;
+  const clamp = (total: number) =>
+    Math.min(maxTotal, Math.max(minRaiseTotal, snapToBlind(total, bigBlind)));
+
+  const candidates: [RaiseSizeOption, number][] = [
+    ["min", minRaiseTotal],
+    ["half_pot", clamp(currentHighBet + potAfterCall * 0.5)],
+    ["pot", clamp(currentHighBet + potAfterCall)],
+    ["all_in", maxTotal],
+  ];
+
+  const sizes: Partial<Record<RaiseSizeOption, number>> = {};
+  const seen = new Set<number>();
+  candidates.forEach(([key, total]) => {
+    if (total < minRaiseTotal || total > maxTotal || seen.has(total)) return;
+    seen.add(total);
+    sizes[key] = total;
+  });
+  return sizes;
+};
+
+// --- Distribution helpers ---
+
+// Weights over the offered options, seeded from the model's probabilities or,
+// failing that, a one-hot on its chosen option.
+const weightsFromAnswer = <T extends string>(
+  answer: ChoiceAnswer | undefined,
+  options: T[],
+  fallback: T
+): Record<T, number> => {
+  const weights = {} as Record<T, number>;
+  let total = 0;
+  options.forEach((opt) => {
+    const p = answer?.probabilities?.[opt] ?? 0;
+    weights[opt] = p > 0 ? p : 0;
+    total += weights[opt];
+  });
+  if (total <= 0) {
+    const chosen = options.includes(answer?.choice as T)
+      ? (answer!.choice as T)
+      : fallback;
+    options.forEach((opt) => (weights[opt] = opt === chosen ? 1 : 0));
+  }
+  return weights;
+};
+
+// Temperature-scaled sampling: p_i ∝ w_i^(1/T). T→0 becomes argmax.
+const sampleWeighted = <T extends string>(
+  weights: Record<T, number>,
+  temperature: number
+): T => {
+  const options = Object.keys(weights) as T[];
+  const exponent = 1 / Math.max(temperature, 0.05);
+  const scaled = options.map((o) => Math.pow(Math.max(weights[o], 0), exponent));
+  const total = scaled.reduce((a, b) => a + b, 0);
+  if (total <= 0) return options[0];
+
+  let roll = Math.random() * total;
+  for (let i = 0; i < options.length; i++) {
+    roll -= scaled[i];
+    if (roll <= 0) return options[i];
+  }
+  return options[options.length - 1];
+};
+
+const formatPercent = (value: number | undefined) =>
+  value === undefined ? "?" : `${Math.round(value * 100)}%`;
+
+const normalise = <T extends string>(weights: Record<T, number>) => {
+  const total = Object.values<number>(weights).reduce((a, b) => a + b, 0);
+  const out = {} as Record<T, number>;
+  (Object.keys(weights) as T[]).forEach((k) => {
+    out[k] = total > 0 ? weights[k] / total : 0;
+  });
+  return out;
+};
+
+// Turns the numbers behind the decision into a one-line explanation for the log.
+const buildReasoning = (
+  persona: Persona,
+  tilt: number,
+  equity: number,
+  potOdds: number,
+  answers: DecisionAnswers,
+  finalWeights: Record<ActionOption, number>,
+  action: ActionOption,
+  raiseLabel?: string
+): string => {
+  const parts: string[] = [];
+
+  parts.push(tilt > 1.05 ? `${persona.label} (tilted x${tilt.toFixed(1)})` : persona.label);
+  parts.push(
+    potOdds > 0
+      ? `Equity ${equity.toFixed(0)}% vs odds ${potOdds.toFixed(0)}%`
+      : `Equity ${equity.toFixed(0)}%`
+  );
+
+  if (answers.hand_strength) {
+    const strength = answers.hand_strength.score;
+    parts.push(
+      `Strength ${Number.isInteger(strength) ? strength : strength.toFixed(1)}/${HAND_STRENGTH_LEVELS.length - 1}`
+    );
+  }
+
+  const mix = (Object.entries(finalWeights) as [ActionOption, number][])
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k} ${formatPercent(v)}`)
+    .join(" / ");
+  parts.push(mix);
+
+  parts.push(
+    action === "raise" && raiseLabel
+      ? `→ RAISE ${raiseLabel}`
+      : `→ ${action.toUpperCase()}`
+  );
+
+  return parts.join(" · ");
+};
+
 export const getAIDecision = async (
   activePlayer: Player,
   allPlayers: Player[],
@@ -49,9 +250,17 @@ export const getAIDecision = async (
   handHistory: string[],
   reasoningHistory: string[] = []
 ): Promise<AIDecision> => {
-  const toCall = currentHighBet - activePlayer.currentBet;
+  const persona = activePlayer.persona ?? PERSONAS.TAG;
+  const tilt = activePlayer.tilt ?? 1;
+
+  const toCall = Math.min(
+    currentHighBet - activePlayer.currentBet,
+    activePlayer.chips
+  );
   const potOdds = calculatePotOdds(toCall, pot);
-  const stackInBB = (activePlayer.chips / bigBlind).toFixed(1);
+  const maxTotal = activePlayer.chips + activePlayer.currentBet;
+  const minRaiseTotal = Math.min(currentHighBet + bigBlind, maxTotal);
+  const canRaise = activePlayer.chips > toCall && maxTotal > currentHighBet;
 
   // Filter visible board
   let visibleBoard: Card[] = [];
@@ -60,248 +269,197 @@ export const getAIDecision = async (
   else if (phase === GamePhase.RIVER || phase === GamePhase.SHOWDOWN)
     visibleBoard = board.slice(0, 5);
 
-  // --- 1. Construct Sequential Action List ---
+  // --- 1. Table snapshot in action order (folded players omitted) ---
   const dealerIndex = allPlayers.findIndex((p) => p.isDealer);
-  const rawActionOrder = getSortedPlayersByActionOrder(
+  const tablePlayers = getSortedPlayersByActionOrder(
     allPlayers,
     dealerIndex !== -1 ? dealerIndex : 0,
     phase
+  )
+    .filter((p) => p.status !== "FOLDED" && p.status !== "ELIMINATED")
+    .map((p) => ({
+      name: p.name,
+      position: p.isDealer ? "BTN" : p.position,
+      status: describeStatus(p),
+      stack: p.chips,
+      isYou: p.id === activePlayer.id,
+    }));
+
+  const opponentsInHand = Math.max(
+    1,
+    tablePlayers.filter((p) => !p.isYou).length
   );
 
-  // Filter out folded players for the snapshot (Current Table State)
-  // We only care about active participants for the current state view.
-  const actionOrderPlayers = rawActionOrder.filter(
-    (p) => p.status !== "FOLDED"
+  // --- 2. Local maths the model should not have to guess ---
+  const equity = estimateEquity(
+    activePlayer.hand,
+    visibleBoard,
+    opponentsInHand,
+    EQUITY_ITERATIONS
   );
 
-  // Identify indices for positional tags (Circular to handle round-table context)
-  const heroIndex = actionOrderPlayers.findIndex(
-    (p) => p.id === activePlayer.id
-  );
-  const totalPlayers = actionOrderPlayers.length;
+  // --- 3. State object the model reasons about ---
+  const state = {
+    game: "No-Limit Texas Hold'em, cash-style table",
+    street: phase,
+    you: {
+      name: activePlayer.name,
+      position: activePlayer.isDealer ? "BTN" : activePlayer.position,
+      holeCards: formatCards(activePlayer.hand),
+      stack: activePlayer.chips,
+      stackInBigBlinds: Number((activePlayer.chips / bigBlind).toFixed(1)),
+      alreadyBetThisStreet: activePlayer.currentBet,
+    },
+    board: visibleBoard.length ? formatCards(visibleBoard) : "none (preflop)",
+    pot,
+    toCall,
+    potOddsPercent: Number(potOdds.toFixed(1)),
+    equityPercent: Number(equity.toFixed(1)),
+    equityMinusPotOdds: Number((equity - potOdds).toFixed(1)),
+    bigBlind,
+    opponentsInHand,
+    minRaiseTotal,
+    maxBetTotal: maxTotal,
+    tableInActionOrder: tablePlayers,
+    handHistory: handHistory.length ? handHistory : ["No actions yet."],
+    yourEarlierReads: reasoningHistory,
+  };
 
-  let prevIndex = -1;
-  let nextIndex = -1;
+  // --- 4. Questions: only legal actions are offered ---
+  const actionCriteria: Partial<Record<ActionOption, string>> = {};
 
-  if (totalPlayers > 1) {
-    prevIndex = (heroIndex - 1 + totalPlayers) % totalPlayers;
-    nextIndex = (heroIndex + 1) % totalPlayers;
+  if (toCall > 0) {
+    actionCriteria.fold = `Give up the hand. Correct when \`equityPercent\` is clearly below \`potOddsPercent\` (${potOdds.toFixed(1)}%) and you have no profitable raise; more attractive out of position, multiway, or facing a raise-and-barrel line.`;
+    actionCriteria.call = `Match the $${toCall} bet. Correct when \`equityPercent\` is at least \`potOddsPercent\` but the hand is not strong enough to raise for value, or when floating in position against a capped range.`;
+  } else {
+    actionCriteria.check = `Take the free option. Correct with weak or marginal hands, when out of position without a range advantage, or when slow-playing a monster against an aggressive opponent.`;
   }
 
-  // Build the narrative line for each player
-  const actionSequence = actionOrderPlayers
-    .map((p, index) => {
-      const isHero = p.id === activePlayer.id;
-      const role = p.isDealer ? "BTN" : p.position;
+  const raiseSizes = canRaise
+    ? buildRaiseSizes(
+        pot,
+        toCall,
+        currentHighBet,
+        minRaiseTotal,
+        maxTotal,
+        bigBlind
+      )
+    : {};
 
-      let actionDesc: string = p.status;
+  if (canRaise && Object.keys(raiseSizes).length > 0) {
+    const verb = toCall > 0 ? "Raise" : "Bet";
+    actionCriteria.raise = `${verb} (minimum total $${minRaiseTotal}). Correct with strong made hands and high-equity draws (\`equityPercent\` well above what is needed), or as a bluff only when you have a range advantage and the opponent has shown weakness. Do not bluff multiway or into a raise-and-barrel line.`;
+  }
 
-      // Detailed Action Descriptions based on Status and Context
-      if (p.status === "ELIMINATED") {
-        actionDesc = "Eliminated";
-      } else if (p.status === "ALL-IN") {
-        actionDesc = `All-In ($${p.currentBet})`;
-      } else if (
-        p.status === "WAITING" ||
-        p.status === "THINKING" ||
-        p.status === "ACTING"
-      ) {
-        if (p.currentBet > 0) {
-          actionDesc = `Posted Blind/Bet ($${p.currentBet}) - Yet to Act`;
-        } else {
-          actionDesc = "Yet to Act";
-        }
-      } else if (p.status === "CHECKED") {
-        actionDesc = "Checked";
-      } else if (p.status === "CALLED") {
-        actionDesc = `Called ($${p.currentBet})`;
-      } else if (p.status === "RAISED") {
-        actionDesc = `RAISED to $${p.currentBet}`;
+  const questions: Record<string, ChoiceQuestion | ScoreQuestion> = {
+    hand_strength: {
+      type: "score",
+      instructions:
+        "Rate the absolute strength of `you.holeCards` given `board` and `street`, ignoring the betting.",
+      criteria: HAND_STRENGTH_LEVELS,
+    },
+    action: {
+      type: "choice",
+      instructions:
+        "You are a game-theory-optimal No-Limit Hold'em player. `equityPercent` is your simulated chance to win at showdown against `opponentsInHand` random hands; adjust it downward when opponents have shown strength via `handHistory`. Compare it with `potOddsPercent`, weigh `you.position` and `tableInActionOrder`, and choose the single highest-EV action. A preflop raiser betting again represents strength; passive lines cap ranges.",
+      criteria: actionCriteria as Record<string, string>,
+    },
+  };
+
+  const sizeLabels: Partial<Record<RaiseSizeOption, string>> = {};
+  if (actionCriteria.raise) {
+    const sizeCriteria: Record<string, string> = {};
+    const describe: Record<RaiseSizeOption, (amt: number) => string> = {
+      min: (amt) =>
+        `Minimum raise to $${amt}. Cheap probe or small range bet when checked to with a range advantage.`,
+      half_pot: (amt) =>
+        `About half pot, to $${amt}. Standard value bet on dry boards or a well-sized bluff.`,
+      pot: (amt) =>
+        `About full pot, to $${amt}. Deny equity on wet boards with strong hands, or polarised pressure.`,
+      all_in: (amt) =>
+        `All-in for $${amt}. Maximum pressure with the nuts, a short stack, or a combo draw with fold equity.`,
+    };
+    (Object.entries(raiseSizes) as [RaiseSizeOption, number][]).forEach(
+      ([key, amt]) => {
+        sizeCriteria[key] = describe[key](amt);
+        sizeLabels[key] = key === "all_in" ? "all-in" : key.replace("_", " ");
       }
+    );
 
-      let marker = "";
-      if (isHero) {
-        marker = " <---  YOU (DECISION)";
-      } else if (index === prevIndex) {
-        marker = " <--- PREVIOUS";
-      } else if (index === nextIndex) {
-        marker = " <--- NEXT";
-      }
+    questions.raise_size = {
+      type: "choice",
+      instructions:
+        "If you were to bet or raise here, which sizing is best given `pot`, `you.stack`, board texture and how many opponents remain?",
+      criteria: sizeCriteria,
+    };
+  }
 
-      return `${role} (${p.name}): [${actionDesc}] | Stack: ${p.chips}${marker}`;
-    })
-    .join("\n");
-
-  const systemInstruction = `
-You are a **GTO poker expert** named ${activePlayer.name}.
-Your task is to output the **single highest-EV action** using game-theory-optimal logic.
-You do NOT balance emotions, table talk, or storytelling—only EV.
-
---------------------------------
-CORE ANALYSIS FRAMEWORK
---------------------------------
-
-0. RANGE ASSIGNMENT (MANDATORY)
-Infer opponent ranges strictly from:
-- Position
-- Preflop actions (raise / call / 3-bet)
-- Stack depth
-- Tendencies if explicitly provided
-
-Baseline preflop assumptions (100bb, no reads):
-- UTG Open: TT+, AQs+, AKo, occasional AJs/KQs
-- MP Open: 88+, ATs+, AJo+, KQs
-- CO Open: 66+, A8s+, ATo+, KTs+, QJs, JTs
-- BTN Open: 40-55% of hands
-- SB Open: 30-40%, more linear
-- Limped pots: wide and capped ranges
-
-1. POT ODDS & EQUITY (NON-NEGOTIABLE)
-- You are being offered pot odds of ${potOdds}.
-- Call ONLY if estimated hand equity ≥ pot odds.
-- If equity is clearly below pot odds → FOLD.
-- Marginal equity hands lose value when out of position.
-
-2. POSITIONAL DISCIPLINE
-- Your position: "${activePlayer.position}"
-- In Position (IP):
-  - Widen calling and floating ranges.
-  - Apply pressure when opponent shows weakness.
-- Out of Position (OOP):
-  - Tighten ranges.
-  - Prefer fold or raise over passive calls.
-
-3. AGGRESSION PRINCIPLE
-- If you have:
-  - A strong made hand, OR
-  - A high-equity draw (8+ outs, combo draws),
-  → Prefer RAISE over CALL.
-- Calling with strong hands is discouraged unless trapping is clearly optimal.
-
-4. BLUFFING CONSTRAINTS
-- Bluff ONLY when:
-  - You have range advantage, AND
-  - Opponent has shown weakness (check, capped line).
-- If checked to on Flop or Turn with air + range advantage:
-  - Bet SMALL (range bet).
-- Do NOT bluff:
-  - Calling stations
-  - Multi-way pots
-  - Against strength (raise + barrel lines)
-
-5. BLIND LOGIC
-- Big Blind:
-  - Defend wide vs single raises when pot odds justify it.
-  - If “Option Pending”, you have not yet acted—treat as unopened action.
-
-6. CONTEXT & LINE CONSISTENCY
-- Use the FULL HAND HISTORY.
-- Preflop raiser betting again represents strength.
-- Multiple aggressive actions narrow ranges.
-- Passive lines cap ranges.
-
---------------------------------
-OUTPUT FORMAT (STRICT)
---------------------------------
-Return ONLY a JSON object:
-
-{
-  "action": "fold" | "check" | "call" | "raise",
-  "amount"?: number,
-  "reasoning": "concise explanation of thought process in one sentence"
-}
-
---------------------------------
-RAISE RULES (MANDATORY)
---------------------------------
-- Minimum total raise: $${currentHighBet + bigBlind}
-- If raising, "amount" must be the NEW TOTAL bet.
-- Raise sizes must be clean, intentional, and non-random.
-- Do NOT include "amount" when checking (call with $0).
-    `;
-
-  const prompt = `
-=== SITUATION ===
-Phase: ${phase}
-Pot: $${pot}
-To Call: $${toCall}
-Your Stack: $${activePlayer.chips} (${stackInBB} BBs)
-
-=== HAND ===
-Cards: ${formatCards(activePlayer.hand)}
-Board: ${visibleBoard.length ? formatCards(visibleBoard) : "Clean"}
-
-=== FULL HAND HISTORY ===
-${handHistory.length > 0 ? handHistory.join("\n") : "No actions yet."}
-
-=== YOUR PREVIOUS REASONING ===
-${
-  reasoningHistory.length > 0
-    ? reasoningHistory.join("\n---\n")
-    : "No previous thoughts."
-}
-
-=== CURRENT TABLE STATE ===
-${actionSequence}
-
-=== DECISION ===
-Based on the FULL history (previous streets) and current table state, make a GTO decision.
-    `;
-
-  // --- DEBUG LOGGING ---
-  // console.log(
-  //   `%c--- AI PROMPT (${activePlayer.name}) ---`,
-  //   "background: #222; color: #bada55",
-  //   prompt
-  // );
+  const legalActions = Object.keys(actionCriteria) as ActionOption[];
+  const safeDefault: ActionOption = toCall > 0 ? "fold" : "check";
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            action: {
-              type: Type.STRING,
-              enum: ["fold", "check", "call", "raise"],
-            },
-            amount: { type: Type.INTEGER },
-            reasoning: { type: Type.STRING },
-          },
-          required: ["action", "reasoning"],
-        },
+    if (!API_KEY) throw new Error("OPENROUTER_API_KEY is not set");
+
+    const response = await fetch(DECISIONS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+        "X-Title": "MONASH Hold'em",
       },
+      body: JSON.stringify({ model: MODEL, state, questions }),
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
-
-    const decision = JSON.parse(text) as AIDecision;
-
-    // --- Safeguards ---
-    if (decision.action === "raise") {
-      let validAmount = decision.amount || currentHighBet * 2;
-      if (validAmount <= currentHighBet)
-        validAmount = currentHighBet + bigBlind;
-
-      // Snap to Blind
-      validAmount = Math.round(validAmount / bigBlind) * bigBlind;
-
-      const maxTotal = activePlayer.chips + activePlayer.currentBet;
-      if (validAmount > maxTotal) validAmount = maxTotal;
-
-      decision.amount = validAmount;
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Decisions API ${response.status}: ${body}`);
     }
-    if (decision.action === "call" || decision.action === "check")
-      delete decision.amount;
 
+    const { answers } = (await response.json()) as { answers: DecisionAnswers };
+
+    // --- 5. Persona: warp the model's distribution, then sample ---
+    const weights = weightsFromAnswer(answers.action, legalActions, safeDefault);
+    const strength = answers.hand_strength?.score ?? 2;
+
+    if (weights.raise !== undefined) {
+      weights.raise *= persona.aggression * tilt;
+      if (strength <= WEAK_HAND_THRESHOLD) weights.raise += persona.bluffFreq;
+    }
+    if (weights.fold !== undefined) weights.fold /= persona.looseness;
+
+    const finalWeights = normalise(weights);
+    let action = sampleWeighted(finalWeights, persona.temperature);
+    if (!legalActions.includes(action)) action = safeDefault;
+
+    const decision: AIDecision = { action };
+    let raiseLabel: string | undefined;
+
+    if (action === "raise") {
+      const sizeOptions = Object.keys(raiseSizes) as RaiseSizeOption[];
+      const sizeWeights = weightsFromAnswer(answers.raise_size, sizeOptions, "min");
+      sizeOptions.forEach((key) => {
+        sizeWeights[key] *= SIZING_WEIGHTS[persona.sizing][key];
+        if (key === "all_in") sizeWeights[key] *= tilt; // tilted players shove more
+      });
+      const sizeKey = sampleWeighted(sizeWeights, persona.temperature);
+      const total = raiseSizes[sizeKey] ?? raiseSizes.min ?? minRaiseTotal;
+      decision.amount = Math.min(Math.max(total, minRaiseTotal), maxTotal);
+      raiseLabel = `${sizeLabels[sizeKey] ?? "min"} ($${decision.amount})`;
+    }
+
+    decision.reasoning = buildReasoning(
+      persona,
+      tilt,
+      equity,
+      potOdds,
+      answers,
+      finalWeights,
+      action,
+      raiseLabel
+    );
     return decision;
   } catch (error) {
     console.error("AI Error:", error);
-    return { action: "fold", reasoning: "Error in AI service." };
+    return { action: safeDefault, reasoning: "Error in AI service." };
   }
 };
