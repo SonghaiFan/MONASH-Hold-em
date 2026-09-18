@@ -15,6 +15,7 @@ interface PlayerStratumProps {
   gameStatus: "active" | "complete" | "won" | "busted";
   onNextHand: () => void;
   onRebuy: () => void;
+  canRebuy?: boolean;
   onRestart: () => void;
   winningHand: WinningHand | null;
   bigBlind: number;
@@ -30,6 +31,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
   gameStatus,
   onNextHand,
   onRebuy,
+  canRebuy = true,
   onRestart,
   winningHand,
   bigBlind,
@@ -146,8 +148,8 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
     if (gameStatus === "busted") {
       return (
         <div className="w-full max-w-[600px] mx-auto animate-in slide-in-from-bottom-4 duration-300">
-          <ActionButton onClick={onRebuy} variant="red" className="w-full">
-            Rebuy Stack
+          <ActionButton onClick={onRebuy} variant="red" className="w-full" disabled={!canRebuy}>
+            {canRebuy ? "Rebuy Stack" : "Broke · leave the table"}
           </ActionButton>
         </div>
       );

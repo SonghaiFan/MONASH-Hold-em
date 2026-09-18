@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { AI_MODELS, AI_NAMES, DEFAULT_CONFIG, modelCostPerM } from "../constants";
+import { STARTING_WEALTH } from "../services/bankroll";
 import { GameConfig } from "../types";
 import { ActionButton } from "./ActionButton";
 import { Assignees, Person } from "./Assignees";
@@ -12,6 +13,8 @@ import { Assignees, Person } from "./Assignees";
 interface LandingPageProps {
   onStartGame: (config: GameConfig) => void;
   username: string | null;
+  wealth: number; // the bankroll; venues with a bigger buy-in stay locked
+  onTopUp: () => void; // the house stakes a broke player
   isExiting?: boolean;
 }
 
@@ -27,6 +30,8 @@ interface GameLevel {
 
 // What each venue serves follows from its budget and OpenRouter's prices:
 // the cheaper the room, the cheaper the brains.
+const affordable = (venue: GameLevel, wealth: number) => venue.buyIn <= wealth;
+
 const menuFor = (venue: GameLevel) =>
   AI_MODELS.filter((m) => modelCostPerM(m) <= venue.budgetPerM).sort(
     (a, b) => modelCostPerM(a) - modelCostPerM(b)
@@ -81,6 +86,7 @@ const LEVELS: GameLevel[] = [
 ];
 
 const MAX_OPPONENTS = 9; // a 10-max table
+const DEFAULT_TABLE = 6; // player + five
 
 interface Seat {
   id: string; // the person's name doubles as the id
@@ -95,11 +101,16 @@ const modelFor = (id: string) => AI_MODELS.find((m) => m.id === id);
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartGame,
   username,
+  wealth,
+  onTopUp,
   isExiting,
 }) => {
   const [selectedLevelId, setSelectedLevelId] = useState<string>(LEVELS[0].id);
-  // The default order: one JEV, the only thing the entry venue serves
-  const [seats, setSeats] = useState<Seat[]>([{ id: AI_NAMES[0], model: AI_MODELS[0].id }]);
+  // The default table is six-handed: the player and five on the entry venue's
+  // one provider
+  const [seats, setSeats] = useState<Seat[]>(
+    AI_NAMES.slice(0, DEFAULT_TABLE - 1).map((name) => ({ id: name, model: AI_MODELS[0].id }))
+  );
 
   const level = LEVELS.find((l) => l.id === selectedLevelId) ?? LEVELS[0];
   const menu = useMemo(() => menuFor(level), [level]);
@@ -178,12 +189,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <span className="relative inline-flex rounded-full h-full w-full bg-[#d4af37]"></span>
                 </span>
                 <span className="text-[0.6rem] md:text-xs font-mono text-white/50 uppercase tracking-widest">
-                  PLAYER:{" "}
                   <span className="text-white">{username || "UNKNOWN"}</span>
+                  <span className="text-white/30"> · </span>
+                  <span className="text-[#d4af37]">${wealth.toLocaleString()}</span>
                 </span>
               </div>
             </div>
           </div>
+
+          {/* BROKE — nothing is affordable */}
+          {wealth < LEVELS[0].buyIn && (
+            <div className="flex flex-col md:flex-row md:items-center gap-3 rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 p-5">
+              <div className="flex-1">
+                <div className="text-sm text-white">You're down to ${wealth.toLocaleString()} — not enough for any table.</div>
+                <div className="text-xs text-white/50 mt-1">The house will stake you back to ${STARTING_WEALTH.toLocaleString()}.</div>
+              </div>
+              <button onClick={onTopUp} className="shrink-0 px-5 py-2 rounded-full bg-[#d4af37] text-black text-xs font-semibold tracking-widest uppercase">
+                Take the stake
+              </button>
+            </div>
+          )}
 
           {/* VENUE — decides the menu */}
           <div className="flex flex-col gap-4">
@@ -195,9 +220,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="flex gap-4 min-w-max">
                 {LEVELS.map((venue) => {
                   const isActive = selectedLevelId === venue.id;
+                  const open = affordable(venue, wealth);
                   return (
                     <button
                       key={venue.id}
+                      disabled={!open}
+                      title={open ? undefined : `Buy-in $${venue.buyIn.toLocaleString()} · you have $${wealth.toLocaleString()}`}
                       onClick={(e) => {
                         setSelectedLevelId(venue.id);
                         e.currentTarget.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -207,7 +235,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                                                 transition-all duration-300 snap-center group
                                                 ${isActive
                           ? "bg-[#d4af37] border-[#d4af37] text-black shadow-[0_0_30px_rgba(212,175,55,0.2)] scale-100"
-                          : "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
+                          : open
+                            ? "bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/30 scale-95 hover:scale-100"
+                            : "bg-black/40 border-white/5 text-gray-600 scale-95 opacity-50 cursor-not-allowed"
                         }
                                             `}
                     >
@@ -256,7 +286,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                           : "bg-[#222] text-gray-500"
                           }`}
                       >
-                        {venue.desc}
+                        {open ? venue.desc : "Locked"}
                       </div>
                     </button>
                   );
@@ -337,7 +367,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="max-w-4xl mx-auto">
           <ActionButton
             onClick={() => onStartGame(config)}
-            disabled={seats.length === 0}
+            disabled={seats.length === 0 || !affordable(level, wealth)}
             variant="gold"
             className="w-full text-xs md:text-sm tracking-[0.3em] py-5 md:py-6 shadow-[0_0_40px_rgba(212,175,55,0.15)] hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] border-[#d4af37]/50"
           >

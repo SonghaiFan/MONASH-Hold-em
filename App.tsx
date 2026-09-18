@@ -5,6 +5,7 @@ import { LandingPage } from './components/LandingPage';
 import { PokerGame } from './components/PokerGame';
 import { GameConfig } from './types';
 import { DEFAULT_CONFIG } from './constants';
+import { STARTING_WEALTH, loadWealth, saveWealth } from './services/bankroll';
 
 type ViewState = 'LOGIN' | 'SETUP' | 'GAME';
 
@@ -14,6 +15,16 @@ function App() {
     
     const [user, setUser] = useState<string | null>(null);
     const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG);
+    // The player's bankroll, persisted per name. Buy-ins come out, chips go back.
+    const [wealth, setWealth] = useState<number>(0);
+
+    const adjustWealth = useCallback((delta: number) => {
+        setWealth(w => {
+            const next = Math.max(0, Math.round(w + delta));
+            if (user) saveWealth(user, next);
+            return next;
+        });
+    }, [user]);
 
     // Helper to handle the exit-animation-then-switch flow
     const transitionTo = useCallback((nextView: ViewState, callback?: () => void) => {
@@ -30,23 +41,26 @@ function App() {
         // Transition: Login -> Setup
         transitionTo('SETUP', () => {
             setUser(username);
+            setWealth(loadWealth(username));
             setConfig(prev => ({ ...prev, playerName: username }));
         });
     };
 
+    // Broke? The house stakes you back to the starting bankroll.
+    const handleTopUp = () => adjustWealth(STARTING_WEALTH - wealth);
+
     const handleStartGame = (newConfig: GameConfig) => {
-        // Transition: Setup -> Game
+        if (newConfig.startingStackHuman > wealth) return; // the venue is locked
+        // Transition: Setup -> Game; the buy-in leaves the bankroll now
         transitionTo('GAME', () => {
             setConfig(newConfig);
+            adjustWealth(-newConfig.startingStackHuman);
         });
     };
 
-    const handleExitGame = () => {
-        // Transition: Game -> Setup
-        // Note: PokerGame doesn't have an explicit exit animation prop yet, 
-        // effectively it will just fade out via React unmount or we could add one, 
-        // but immediate switch is usually fine for "Quitting".
-        // For smoothness, we just switch back.
+    // Leaving the table: whatever chips are in front of the player go back to the bankroll
+    const handleExitGame = (chipsOnTable: number) => {
+        adjustWealth(chipsOnTable);
         setView('SETUP');
     };
 
@@ -67,6 +81,8 @@ function App() {
                     <LandingPage 
                         onStartGame={handleStartGame} 
                         username={user} 
+                        wealth={wealth}
+                        onTopUp={handleTopUp}
                         isExiting={isExiting}
                     />
                 )}
@@ -74,6 +90,8 @@ function App() {
                 {view === 'GAME' && (
                     <PokerGame 
                         config={config} 
+                        wealth={wealth}
+                        onWealthChange={adjustWealth}
                         onExit={handleExitGame} 
                     />
                 )}

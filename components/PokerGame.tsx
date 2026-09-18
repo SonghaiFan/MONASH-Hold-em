@@ -10,10 +10,12 @@ import { ActionButton } from './ActionButton';
 
 interface PokerGameProps {
     config: GameConfig;
-    onExit: () => void;
+    wealth: number; // bankroll outside the table
+    onWealthChange: (delta: number) => void;
+    onExit: (chipsOnTable: number) => void;
 }
 
-export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
+export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthChange, onExit }) => {
     // Centralized Game State
     const [gameState, setGameState] = useState<GameState>(() => initializeGame(config));
 
@@ -214,8 +216,11 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
         startNewHand();
     };
 
-    // Handle Rebuy
+    // Handle Rebuy — another buy-in out of the bankroll, if it covers one
+    const canRebuy = wealth >= config.startingStackHuman;
     const handleRebuy = useCallback(() => {
+        if (!canRebuy) return;
+        onWealthChange(-config.startingStackHuman);
         setGameState(prev => ({
             ...prev,
             players: prev.players.map(p =>
@@ -223,13 +228,15 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
             )
         }));
         setTimeout(() => startNewHand(), 100);
-    }, [startNewHand, config.startingStackHuman]);
+    }, [startNewHand, config.startingStackHuman, canRebuy, onWealthChange]);
 
-    // Handle Restart (Victory)
+    // Handle Restart (Victory) — cash out the stack, buy in again
     const handleRestartGame = useCallback(() => {
+        const hero = gameState.players.find(p => p.isHuman);
+        onWealthChange((hero?.chips ?? 0) - config.startingStackHuman);
         setGameState(initializeGame(config));
         setTimeout(() => startNewHand(), 100);
-    }, [startNewHand, config]);
+    }, [startNewHand, config, gameState.players, onWealthChange]);
 
 
     // --- GAME EFFECTS for SUSPENSE (Runout & Showdown) ---
@@ -657,7 +664,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
     return (
         <div className="flex flex-col h-full w-full z-10 overflow-hidden relative">
             <button
-                onClick={onExit}
+                onClick={() => onExit(humanPlayer.chips)}
                 className="absolute top-4 left-4 z-50 p-2 rounded-full bg-black/40 text-white/30 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md"
                 title="Exit Game"
             >
@@ -716,6 +723,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, onExit }) => {
                     gameStatus={gameStatus}
                     onNextHand={startNewHand}
                     onRebuy={handleRebuy}
+                    canRebuy={canRebuy}
                     onRestart={handleRestartGame}
                     winningHand={gameState.winningHand}
                     bigBlind={config.blindBig}
