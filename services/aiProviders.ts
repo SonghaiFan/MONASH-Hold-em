@@ -47,7 +47,7 @@ export const modelKindFor = (modelId: string): AIModelKind =>
 // A seat's prompt, set in the lobby, replaces the default play instructions
 // for that one player — so every opponent can think differently. The parts
 // that ask for the answer's shape (strength scale, legal actions, schema) stay.
-const playInstructions = (prompt?: string) => prompt?.trim() || ACTION_INSTRUCTIONS;
+export const playInstructions = (prompt?: string) => prompt?.trim() || ACTION_INSTRUCTIONS;
 
 const headers = (apiKey: string) => ({
   Authorization: `Bearer ${apiKey}`,

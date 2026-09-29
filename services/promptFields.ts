@@ -77,6 +77,8 @@ PROMPT_FIELDS.forEach((f) => {
   });
 });
 
+export const isKnownField = (name: string) => KNOWN.has(name.trim().replace(/^state\./, ""));
+
 // The backtick names a prompt uses, split into the ones `state` has and the ones it doesn't
 export const referencesIn = (prompt: string) => {
   const used = new Set<string>();
