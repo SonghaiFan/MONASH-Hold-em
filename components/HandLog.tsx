@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { GamePhase, Player } from "../types";
 import { useLanguage } from "../services/i18n";
-import { HERO_AVATAR, avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 
 interface HandLogProps {
   history: string[]; // GameState.handHistory: the engine's own lines
@@ -49,11 +49,6 @@ export const HandLog: React.FC<HandLogProps> = ({ history, notes, players, phase
     el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [lines.length, thinking?.id]);
 
-  const face = (name: string) => {
-    const p = players.find((x) => x.name === name);
-    return p?.isHuman ? HERO_AVATAR : avatarFor(name);
-  };
-
   return (
     <aside className="h-full flex flex-col min-h-0">
       {/* Where the hand is */}
@@ -85,7 +80,12 @@ export const HandLog: React.FC<HandLogProps> = ({ history, notes, players, phase
             ) : (
               <li key={i} className="rounded-[16px] bg-[#1c1c1e]/60 px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <img src={face(l.name)} alt="" draggable={false} className="w-6 h-6 object-contain shrink-0" />
+                  <Avatar
+                    name={l.name}
+                    isHuman={players.find((x) => x.name === l.name)?.isHuman}
+                    alt=""
+                    className="w-6 h-6 object-contain shrink-0"
+                  />
                   <span className="text-[13px] text-white truncate">{l.name}</span>
                   <span className="text-[10px] text-white/35 shrink-0">{l.pos}</span>
                   <span className={`ml-auto shrink-0 text-[13px] tabular-nums ${l.verb === "fold" ? "text-white/40" : l.verb === "raise" || l.verb === "allIn" ? "text-[#f5e35b]" : "text-white/80"}`}>
@@ -99,7 +99,7 @@ export const HandLog: React.FC<HandLogProps> = ({ history, notes, players, phase
           )}
           {thinking && (
             <li className="rounded-[16px] border border-dashed border-white/15 px-3 py-2 flex items-center gap-2">
-              <img src={avatarFor(thinking.name)} alt="" draggable={false} className="w-6 h-6 object-contain shrink-0" />
+              <Avatar name={thinking.name} alt="" className="w-6 h-6 object-contain shrink-0" />
               <span className="text-[13px] text-white/60 truncate">{thinking.name}</span>
               <span className="ml-auto text-[12px] text-white/40 animate-pulse">{t.game.thinking}</span>
             </li>

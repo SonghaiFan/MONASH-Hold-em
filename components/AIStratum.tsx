@@ -3,7 +3,7 @@ import { GamePhase, Player, PlayerAction, WinningHand } from "../types";
 import { PlayingCard } from "./PlayingCard";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { useLanguage } from "../services/i18n";
-import { avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 import { SeatStatsSheet } from "./SeatStatsSheet";
 
 interface AIStratumProps {
@@ -207,10 +207,9 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                             </div>
 
                             <div className="relative w-14 h-14 mt-1 flex items-center justify-center">
-                                <img
-                                    src={avatarFor(p.name)}
+                                <Avatar
+                                    name={p.name}
                                     alt=""
-                                    draggable={false}
                                     className={`w-full h-full object-contain transition-[opacity,filter] duration-300 ${
                                         isDark ? "opacity-25 brightness-50" : word ? "opacity-30" : "opacity-100"
                                     }`}

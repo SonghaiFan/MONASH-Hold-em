@@ -5,7 +5,7 @@ import { Slider } from "./Slider";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { useLanguage } from "../services/i18n";
 import { describeHand } from "../services/pokerEvaluator";
-import { HERO_AVATAR } from "../services/avatars";
+import { Avatar } from "./Avatar";
 
 interface PlayerStratumProps {
   player: Player;
@@ -404,7 +404,7 @@ export const PlayerStratum: React.FC<PlayerStratumProps> = ({
         >
           <span className="text-[15px] text-white/55 truncate max-w-full px-3">{handName}</span>
           <div className="relative w-14 h-14">
-            <img src={HERO_AVATAR} alt="" draggable={false} className="w-full h-full object-contain" />
+            <Avatar isHuman alt="" className="w-full h-full object-contain" />
             {player.isDealer && (
               <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white text-black text-[11px] font-semibold flex items-center justify-center">
                 D

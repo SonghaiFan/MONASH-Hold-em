@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { AI_MODELS } from "../constants";
 import { Player, PlayerAction } from "../types";
 import { useLanguage } from "../services/i18n";
-import { HERO_AVATAR, avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 import { summarise } from "../services/playerStats";
 import { SeatStatsSheet } from "./SeatStatsSheet";
 
@@ -74,10 +74,10 @@ export const TableRoster: React.FC<TableRosterProps> = ({ players, activePlayerI
                 } ${out ? "opacity-30" : folded ? "opacity-50" : ""} enabled:cursor-pointer`}
               >
                 <span className="relative shrink-0 w-10 h-10">
-                  <img
-                    src={p.isHuman ? HERO_AVATAR : avatarFor(p.name)}
+                  <Avatar
+                    name={p.name}
+                    isHuman={p.isHuman}
                     alt=""
-                    draggable={false}
                     className="w-full h-full object-contain"
                   />
                   {model?.color && !p.isHuman && (

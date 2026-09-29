@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AI_MODELS, modelCostPerM } from "../constants";
 import { AIModelOption, PlayerStats } from "../types";
 import { useLanguage } from "../services/i18n";
-import { avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 import { NATURAL, SeatSettings } from "../services/seats";
 import { ACTION_INSTRUCTIONS } from "../services/pokerSituation";
 import { referencesIn } from "../services/promptFields";
@@ -119,7 +119,7 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
 
         {/* Who */}
         <div className="shrink-0 flex items-center gap-4 px-5 pt-3 pb-5">
-          <img src={avatarFor(seat.id)} alt="" draggable={false} className="w-16 h-16 object-contain" />
+          <Avatar name={seat.id} alt="" className="w-16 h-16 object-contain" />
           <div className="min-w-0">
             <div className="text-[22px] text-white leading-tight truncate">{seat.id}</div>
             <div className="text-[15px] text-white/45 truncate">

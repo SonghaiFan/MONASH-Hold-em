@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AI_MODELS } from "../constants";
 import { Player } from "../types";
 import { useLanguage } from "../services/i18n";
-import { avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 import { MIN_HANDS_FOR_READS, summarise } from "../services/playerStats";
 import { CUSTOM, pointOf } from "../services/style";
 import { StylePad } from "./StylePad";
@@ -46,7 +46,7 @@ export const SeatStatsSheet: React.FC<SeatStatsSheetProps> = ({ player, onClose 
         </div>
 
         <div className="flex items-center gap-4 px-5 pt-3 pb-5">
-          <img src={avatarFor(player.name)} alt="" draggable={false} className="w-16 h-16 object-contain" />
+          <Avatar name={player.name} isHuman={player.isHuman} alt="" className="w-16 h-16 object-contain" />
           <div className="min-w-0 flex-1">
             <div className="text-[22px] text-white leading-tight truncate">{player.name}</div>
             <div className="text-[15px] text-white/45 truncate">

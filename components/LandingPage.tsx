@@ -6,7 +6,7 @@ import { useLanguage } from "../services/i18n";
 import { LanguageToggle } from "./LanguageToggle";
 import { OpponentSheet } from "./OpponentSheet";
 import { SeatSnake } from "./SeatSnake";
-import { HERO_AVATAR } from "../services/avatars";
+import { Avatar } from "./Avatar";
 import { NATURAL, SeatSettings, defaultSeat, defaultSeats, loadSeats, saveSeats } from "../services/seats";
 import { CUSTOM, personaFor, styleKeyOf } from "../services/style";
 import { loadSeatStats } from "../services/seatStats";
@@ -274,7 +274,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* You, and the language */}
         <div className="h-14 px-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 h-9 pl-1 pr-3.5 rounded-full bg-[#1c1c1e] min-w-0">
-            <img src={HERO_AVATAR} alt="" draggable={false} className="w-7 h-7 object-contain" />
+            <Avatar isHuman alt="" className="w-7 h-7 object-contain" />
             <span className="text-[14px] text-white truncate">{username || t.setup.unknown}</span>
           </div>
           <LanguageToggle />

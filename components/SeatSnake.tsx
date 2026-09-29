@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { animate } from "framer-motion";
-import { avatarFor } from "../services/avatars";
+import { Avatar } from "./Avatar";
 
 // The opponents, folded into a stack of faces or unfolded into a list — and
 // the unfolding is a snake, not a pendulum. Every face rides one track: along
@@ -187,7 +187,7 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
               boxShadow: `0 0 0 3px rgba(0, 0, 0, ${coin})`,
             }}
           >
-            <img src={avatarFor(row.id)} alt="" draggable={false} className="w-full h-full object-contain" />
+            <Avatar name={row.id} alt="" className="w-full h-full object-contain" />
           </span>
         );
       })}
@@ -198,7 +198,7 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
           className="absolute w-12 h-12 pointer-events-none"
           style={{ left: 0, top: 0, transform: `translate(${g.x}px, ${g.y}px)`, zIndex: 0, animation: `fade-out ${GLIDE_MS}ms ease-out forwards` }}
         >
-          <img src={avatarFor(g.id)} alt="" draggable={false} className="w-full h-full object-contain" />
+          <Avatar name={g.id} alt="" className="w-full h-full object-contain" />
         </span>
       ))}
 
