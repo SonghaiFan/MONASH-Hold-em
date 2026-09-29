@@ -403,6 +403,96 @@ export const estimateEquity = (
   return (equity / iterations) * 100;
 };
 
+// --- For the hand analysis (services/handAnalysis.ts) ---
+
+export type BestHand = HandRank;
+
+// The best five-card hand in these cards (five to seven of them)
+export const bestHandOf = (cards: Card[]): BestHand => evaluateHand(cards);
+
+// 2..14, ace high
+export const rankValueOf = (rank: string): number => getRankValue(rank);
+
+// Positive when a beats b, negative when b beats a, 0 for a tie
+export const compareHands = (a: BestHand, b: BestHand): number => -compareHandRanks(a, b);
+
+export const cardKey = (c: Card) => `${normalizeRank(c.rank)}${c.suit}`;
+
+/**
+ * Like estimateEquity, but each opponent holds a hand drawn from their own
+ * estimated range (a list of two-card combos) rather than any two cards.
+ * An empty list means "any two cards".
+ */
+export const estimateEquityVsRanges = (
+  hand: Card[],
+  board: Card[],
+  ranges: Card[][][],
+  iterations = 250
+): number => {
+  if (hand.length !== 2 || ranges.length === 0) return 0;
+
+  const known = new Set([...hand, ...board].map(cardKey));
+  const deck: Card[] = [];
+  ALL_SUITS.forEach((suit) => {
+    RANKS.forEach((rank) => {
+      const key = `${rank}${suit}`;
+      if (!known.has(key)) deck.push({ rank, suit, id: key });
+    });
+  });
+  // A range can only hold combos that avoid the cards we can see
+  const live = ranges.map((combos) => combos.filter((c) => !known.has(cardKey(c[0])) && !known.has(cardKey(c[1]))));
+  const boardNeeded = 5 - board.length;
+
+  let equity = 0;
+  let dealt = 0;
+  for (let iter = 0; iter < iterations; iter++) {
+    const used = new Set<string>();
+    const opponents: Card[][] = [];
+    let ok = true;
+    for (const combos of live) {
+      let pick: Card[] | undefined;
+      for (let tries = 0; tries < 30 && !pick; tries++) {
+        const candidate =
+          combos.length > 0
+            ? combos[Math.floor(Math.random() * combos.length)]
+            : [deck[Math.floor(Math.random() * deck.length)], deck[Math.floor(Math.random() * deck.length)]];
+        const [a, b] = candidate.map(cardKey);
+        if (a !== b && !used.has(a) && !used.has(b)) pick = candidate;
+      }
+      if (!pick) {
+        ok = false;
+        break;
+      }
+      pick.forEach((c) => used.add(cardKey(c)));
+      opponents.push(pick);
+    }
+    if (!ok) continue;
+
+    const rest = deck.filter((c) => !used.has(cardKey(c)));
+    for (let i = 0; i < boardNeeded; i++) {
+      const j = i + Math.floor(Math.random() * (rest.length - i));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+    const fullBoard = [...board, ...rest.slice(0, boardNeeded)];
+    const heroRank = evaluateHand([...hand, ...fullBoard]);
+
+    let beaten = false;
+    let tiedWith = 0;
+    for (const opp of opponents) {
+      const cmp = compareHandRanks(heroRank, evaluateHand([...opp, ...fullBoard]));
+      if (cmp > 0) {
+        beaten = true;
+        break;
+      }
+      if (cmp === 0) tiedWith++;
+    }
+    dealt++;
+    if (!beaten) equity += 1 / (tiedWith + 1);
+  }
+
+  return dealt ? (equity / dealt) * 100 : 0;
+};
+
 // The name of the best hand these cards make so far — hole cards alone before the flop.
 export const describeHand = (cards: Card[]): string => {
   if (cards.length >= 5) return evaluateHand(cards).name;

@@ -1,6 +1,17 @@
 import { Card, GamePhase, Player, PlayerStats } from "../types";
-import { estimateEquity } from "./pokerEvaluator";
+import { estimateEquity, estimateEquityVsRanges } from "./pokerEvaluator";
 import { MIN_HANDS_FOR_READS, summarise } from "./playerStats";
+import {
+  bluffBreakEven,
+  boardTexture,
+  drawsOf,
+  estimateRange,
+  madeHand,
+  minimumDefense,
+  rangeCombos,
+  stackDepth,
+  startingHand,
+} from "./handAnalysis";
 
 // Everything a model (of either kind) needs to judge one decision, computed
 // once in code so the model never has to do arithmetic or guess what is legal.
@@ -8,7 +19,7 @@ import { MIN_HANDS_FOR_READS, summarise } from "./playerStats";
 export type ActionOption = "fold" | "check" | "call" | "raise";
 export type RaiseSizeOption = "min" | "half_pot" | "pot" | "all_in";
 
-export const EQUITY_ITERATIONS = 250;
+export const EQUITY_ITERATIONS = 600; // about ±2 points of noise; 250 gave ±3
 
 export const HAND_STRENGTH_LEVELS = [
   "Air: no pair, no draw, negligible showdown value (preflop: junk offsuit hands)",
@@ -19,7 +30,7 @@ export const HAND_STRENGTH_LEVELS = [
 ];
 
 export const ACTION_INSTRUCTIONS =
-  "You are a game-theory-optimal No-Limit Hold'em player. `equityPercent` is your simulated chance to win at showdown against `opponentsInHand` random hands; adjust it downward when opponents have shown strength via `handHistory`. Compare it with `potOddsPercent`, weigh `you.position` and `tableInActionOrder`, and choose the single highest-EV action. A preflop raiser betting again represents strength; passive lines cap ranges. Where an opponent has `reads` (VPIP, PFR and postflop aggression so far), use them: a loose player's bets mean less, a tight player's mean more.";
+  "You are a game-theory-optimal No-Limit Hold'em player. `equityPercent` is your simulated chance to win at showdown against each opponent's estimated range (`opponentRanges`, read from their betting this hand), already lower than against random hands (`equityVsRandomPercent`) when they have shown strength. Compare it with `potOddsPercent`; `you.madeHand`, `you.draws` and `boardTexture` say what you hold and what can still come. Facing a bet, `minimumDefenseFrequencyPercent` is how often your range must continue so bluffs don't profit automatically. `stackToPotRatio` says how committed you are: under about 3, strong one-pair hands can play for stacks. Weigh `you.position` and `tableInActionOrder`, and choose the single highest-EV action. Where an opponent has `reads` (VPIP, PFR and postflop aggression so far), use them: a loose player's bets mean less, a tight player's mean more.";
 
 export const HAND_STRENGTH_INSTRUCTIONS =
   "Rate the absolute strength of `you.holeCards` given `board` and `street`, ignoring the betting.";
@@ -189,12 +200,20 @@ export const buildSituation = (
   );
 
   // --- Local maths the model should not have to guess ---
-  const equity = estimateEquity(
-    activePlayer.hand,
-    visibleBoard,
-    opponentsInHand,
-    EQUITY_ITERATIONS
+  const opponents = allPlayers.filter(
+    (p) => p.id !== activePlayer.id && p.status !== "FOLDED" && p.status !== "ELIMINATED"
   );
+  // What each opponent's line says they hold, and equity against exactly that
+  const ranges = opponents.map((p) => estimateRange(p, handHistory));
+  // Against random hands is only a reference point beside the real number, so a rougher estimate does
+  const equityVsRandom = estimateEquity(activePlayer.hand, visibleBoard, opponentsInHand, EQUITY_ITERATIONS / 3);
+  const equity = ranges.length
+    ? estimateEquityVsRanges(activePlayer.hand, visibleBoard, ranges.map(rangeCombos), EQUITY_ITERATIONS)
+    : equityVsRandom;
+
+  const texture = boardTexture(visibleBoard);
+  const draws = drawsOf(activePlayer.hand, visibleBoard);
+  const mdf = minimumDefense(pot, toCall);
 
   const state = {
     game: "No-Limit Texas Hold'em, cash-style table",
@@ -206,13 +225,25 @@ export const buildSituation = (
       stack: activePlayer.chips,
       stackInBigBlinds: Number((activePlayer.chips / bigBlind).toFixed(1)),
       alreadyBetThisStreet: activePlayer.currentBet,
+      startingHand: startingHand(activePlayer.hand),
+      ...(visibleBoard.length ? { madeHand: madeHand(activePlayer.hand, visibleBoard) } : {}),
+      ...(draws ? { draws } : {}),
     },
     board: visibleBoard.length ? formatCards(visibleBoard) : "none (preflop)",
     pot,
     toCall,
     potOddsPercent: Number(potOdds.toFixed(1)),
     equityPercent: Number(equity.toFixed(1)),
+    equityVsRandomPercent: Number(equityVsRandom.toFixed(1)),
     equityMinusPotOdds: Number((equity - potOdds).toFixed(1)),
+    ...(mdf !== null ? { minimumDefenseFrequencyPercent: mdf } : {}),
+    ...stackDepth(activePlayer, opponents, pot, bigBlind),
+    ...(texture ? { boardTexture: texture } : {}),
+    opponentRanges: ranges.map((r) => ({
+      name: r.name,
+      estimatedRange: r.width >= 1 ? "any two cards" : `top ${Math.max(1, Math.round(r.width * 100))}% of starting hands`,
+      because: r.because,
+    })),
     bigBlind,
     opponentsInHand,
     minRaiseTotal,
@@ -242,7 +273,8 @@ export const buildSituation = (
     actionCriteria.raise = `${verb} (minimum total $${minRaiseTotal}). Correct with strong made hands and high-equity draws (\`equityPercent\` well above what is needed), or as a bluff only when you have a range advantage and the opponent has shown weakness. Do not bluff multiway or into a raise-and-barrel line.`;
     (Object.entries(raiseSizes) as [RaiseSizeOption, number][]).forEach(
       ([key, amt]) => {
-        sizeCriteria[key] = SIZE_DESCRIPTIONS[key](amt);
+        const risk = amt - activePlayer.currentBet;
+        sizeCriteria[key] = `${SIZE_DESCRIPTIONS[key](amt)} As a pure bluff it must make them fold ${bluffBreakEven(pot, risk)}% of the time.`;
       }
     );
   }

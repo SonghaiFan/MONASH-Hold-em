@@ -11,8 +11,8 @@
 // plays about 22% of hands. That's rules, not intuition, so it costs nothing,
 // takes no time, and needs no model. The model takes over from the flop.
 
-import { Card, Persona, Player } from "../types";
-import { ActionOption, Situation } from "./pokerSituation";
+import { Card, Persona, Player, Suit } from "../types";
+import type { ActionOption, Situation } from "./pokerSituation";
 
 // The 169 hands, best to worst: the average of each hand's equity rank against
 // one and against two random hands (Monte Carlo, 5,000 and 3,000 deals each).
@@ -43,6 +43,40 @@ export const handCode = (cards: Card[]): string => {
 };
 
 export const handPercentile = (cards: Card[]): number => PERCENTILE[handCode(cards)] ?? 1;
+
+// --- Ranges as card combos, for equity against an estimated range ---
+
+const SUIT_LIST = [Suit.Spades, Suit.Hearts, Suit.Diamonds, Suit.Clubs];
+const toRank = (ch: string) => (ch === "T" ? "10" : ch);
+const card = (rank: string, suit: Suit): Card => ({ rank, suit, id: `${rank}${suit}` });
+
+const combosOf169 = (code: string): Card[][] => {
+  const a = toRank(code[0]);
+  const b = toRank(code[1]);
+  const out: Card[][] = [];
+  if (code.length === 2) {
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) out.push([card(a, SUIT_LIST[i]), card(b, SUIT_LIST[j])]);
+  } else if (code[2] === "s") {
+    SUIT_LIST.forEach((s) => out.push([card(a, s), card(b, s)]));
+  } else {
+    SUIT_LIST.forEach((s1) => SUIT_LIST.forEach((s2) => s1 !== s2 && out.push([card(a, s1), card(b, s2)])));
+  }
+  return out;
+};
+
+const rangeCache = new Map<number, Card[][]>();
+
+// Every combo of the hands in the top `width` of starting hands (0..1). Never
+// empty: the narrowest range is still aces.
+export const combosInRange = (width: number): Card[][] => {
+  const key = Math.round(clamp(width, 0, 1) * 200) / 200;
+  const hit = rangeCache.get(key);
+  if (hit) return hit;
+  const codes = HAND_ORDER.filter((code) => PERCENTILE[code] <= key);
+  const combos = (codes.length ? codes : [HAND_ORDER[0]]).flatMap(combosOf169);
+  rangeCache.set(key, combos);
+  return combos;
+};
 
 // How much wider or narrower than its average a style plays from each seat.
 const POSITION_WIDTH: Record<string, number> = {
