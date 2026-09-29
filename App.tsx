@@ -1,15 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { TextureOverlay } from './components/TextureOverlay';
 import { LoginPage } from './components/LoginPage';
 import { LandingPage } from './components/LandingPage';
 import { PokerGame } from './components/PokerGame';
+import { LanguageToggle } from './components/LanguageToggle';
+import { LanguageProvider } from './services/i18n';
 import { GameConfig } from './types';
 import { DEFAULT_CONFIG } from './constants';
 import { STARTING_WEALTH, loadWealth, saveWealth } from './services/bankroll';
 
 type ViewState = 'LOGIN' | 'SETUP' | 'GAME';
 
-function App() {
+function AppContent() {
     const [view, setView] = useState<ViewState>('LOGIN');
     const [isExiting, setIsExiting] = useState(false);
     
@@ -65,9 +66,15 @@ function App() {
     };
 
     return (
-        <main className="w-full h-[100svh] flex flex-col bg-[radial-gradient(circle_at_center,#35654d_0%,#13251d_100%)] text-[#e0e0e0] font-sans overflow-hidden relative selection:bg-[#d4af37] selection:text-black">
-            <TextureOverlay />
+        <main className="w-full h-[100svh] flex flex-col bg-black text-[#e0e0e0] font-sans overflow-hidden relative selection:bg-[#d4af37] selection:text-black">
             
+            {/* Global Language Toggle (LOGIN only; SETUP embeds it in its header; GAME hides it completely) */}
+            {view === 'LOGIN' && (
+                <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50 pointer-events-auto">
+                    <LanguageToggle />
+                </div>
+            )}
+
             {/* View Container */}
             <div className="relative w-full h-full z-10">
                 {view === 'LOGIN' && (
@@ -97,6 +104,14 @@ function App() {
                 )}
             </div>
         </main>
+    );
+}
+
+function App() {
+    return (
+        <LanguageProvider>
+            <AppContent />
+        </LanguageProvider>
     );
 }
 

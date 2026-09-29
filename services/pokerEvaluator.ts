@@ -402,3 +402,10 @@ export const estimateEquity = (
 
   return (equity / iterations) * 100;
 };
+
+// The name of the best hand these cards make so far — hole cards alone before the flop.
+export const describeHand = (cards: Card[]): string => {
+  if (cards.length >= 5) return evaluateHand(cards).name;
+  if (cards.length === 2 && normalizeRank(cards[0].rank) === normalizeRank(cards[1].rank)) return "Pair";
+  return cards.length > 0 ? "High Card" : "";
+};

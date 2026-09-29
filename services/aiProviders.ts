@@ -44,6 +44,11 @@ export const modelOptionFor = (modelId: string) =>
 export const modelKindFor = (modelId: string): AIModelKind =>
   modelOptionFor(modelId)?.kind ?? "chat";
 
+// A seat's prompt, set in the lobby, replaces the default play instructions
+// for that one player — so every opponent can think differently. The parts
+// that ask for the answer's shape (strength scale, legal actions, schema) stay.
+const playInstructions = (prompt?: string) => prompt?.trim() || ACTION_INSTRUCTIONS;
+
 const headers = (apiKey: string) => ({
   Authorization: `Bearer ${apiKey}`,
   "Content-Type": "application/json",
@@ -78,7 +83,7 @@ interface DecisionAnswers {
   raise_size?: ChoiceAnswer;
 }
 
-export const buildDecisionsRequest = (situation: Situation, modelId: string) => {
+export const buildDecisionsRequest = (situation: Situation, modelId: string, prompt?: string) => {
   const questions: Record<string, unknown> = {
     hand_strength: {
       type: "score",
@@ -87,7 +92,7 @@ export const buildDecisionsRequest = (situation: Situation, modelId: string) => 
     },
     action: {
       type: "choice",
-      instructions: ACTION_INSTRUCTIONS,
+      instructions: playInstructions(prompt),
       criteria: situation.actionCriteria,
     },
   };
@@ -104,9 +109,10 @@ export const buildDecisionsRequest = (situation: Situation, modelId: string) => 
 const runDecisions = async (
   situation: Situation,
   modelId: string,
-  apiKey: string
+  apiKey: string,
+  prompt?: string
 ): Promise<ModelTrace> => {
-  const request = buildDecisionsRequest(situation, modelId);
+  const request = buildDecisionsRequest(situation, modelId, prompt);
   const started = performance.now();
   const response = (await postJson(DECISIONS_URL, apiKey, request)) as {
     answers: DecisionAnswers;
@@ -154,7 +160,7 @@ const probabilitySchema = (keys: string[]) => ({
   additionalProperties: false,
 });
 
-export const buildChatRequest = (situation: Situation, modelId: string) => {
+export const buildChatRequest = (situation: Situation, modelId: string, prompt?: string) => {
   const sizeKeys = Object.keys(situation.sizeCriteria);
   const hasRaise = sizeKeys.length > 0;
 
@@ -164,7 +170,7 @@ export const buildChatRequest = (situation: Situation, modelId: string) => {
       .join("\n");
 
   const system = [
-    ACTION_INSTRUCTIONS,
+    playInstructions(prompt),
     "",
     "You will receive the situation as a JSON object called `state`. Backtick paths in these instructions refer to fields in it.",
     "",
@@ -226,9 +232,10 @@ const parseChatContent = (content: string): ChatDecision => {
 const runChat = async (
   situation: Situation,
   modelId: string,
-  apiKey: string
+  apiKey: string,
+  prompt?: string
 ): Promise<ModelTrace> => {
-  const request = buildChatRequest(situation, modelId);
+  const request = buildChatRequest(situation, modelId, prompt);
   const started = performance.now();
   const response = (await postJson(CHAT_URL, apiKey, request)) as {
     choices?: { message?: { content?: string } }[];
@@ -257,8 +264,9 @@ const runChat = async (
 export const runModel = (
   situation: Situation,
   modelId: string,
-  apiKey: string
+  apiKey: string,
+  prompt?: string
 ): Promise<ModelTrace> =>
   modelKindFor(modelId) === "decisions"
-    ? runDecisions(situation, modelId, apiKey)
-    : runChat(situation, modelId, apiKey);
+    ? runDecisions(situation, modelId, apiKey, prompt)
+    : runChat(situation, modelId, apiKey, prompt);

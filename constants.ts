@@ -7,6 +7,7 @@ import {
   GameConfig,
   Persona,
   AIModelOption,
+  OpponentSeat,
 } from "./types";
 
 export const INITIAL_STACK_HUMAN = 10000;
@@ -250,10 +251,11 @@ export const initializeGame = (
   const aiPlayers: Player[] = [];
 
   // Create AI Players — named seats if given, else one per chosen brain, else
-  // opponentCount copies of the default. A person is just a name and a face;
-  // the model is the brain and there is no persona, so what you see is the
-  // model's own style.
-  const seats: { name: string; model: string }[] =
+  // opponentCount copies of the default. The model is the brain; a seat may
+  // add a strategy (a persona that warps the model's distribution) and a
+  // prompt (words the model reads before every decision). Without either,
+  // what you see is the model's own style.
+  const seats: OpponentSeat[] =
     config.opponents && config.opponents.length > 0
       ? config.opponents
       : (config.opponentModels && config.opponentModels.length > 0
@@ -284,6 +286,8 @@ export const initializeGame = (
       isActive: true,
       currentBet: 0,
       model: seats[i].model,
+      persona: PERSONAS[seats[i].strategy ?? ""],
+      prompt: seats[i].prompt?.trim() || undefined,
       tilt: 1,
       handStartChips: chips,
     });

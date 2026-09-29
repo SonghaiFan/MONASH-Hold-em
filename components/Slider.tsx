@@ -108,12 +108,12 @@ export const Slider: React.FC<SliderProps> = ({
     const markerPosition = isSplitScale && markerValue ? toSliderPercent(markerValue) : null;
 
     return (
-        <div className={`relative w-full h-6 flex items-center ${className}`}>
+        <div className={`relative w-full h-7 flex items-center ${className}`}>
             {/* Visual Track */}
-            <div className="absolute left-0 right-0 h-1 bg-white/10 rounded-full overflow-hidden pointer-events-none">
+            <div className="absolute left-0 right-0 h-1 bg-white/15 rounded-full overflow-hidden pointer-events-none">
                 {/* Fill bar */}
                 <div 
-                    className="h-full bg-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.4)]" 
+                    className="h-full bg-white/50" 
                     style={{ width: `${internalValue}%` }}
                 />
             </div>
@@ -146,10 +146,9 @@ export const Slider: React.FC<SliderProps> = ({
 
             {/* Custom Thumb (Visual Only, follows internalValue) */}
             <div 
-                className="absolute w-6 h-6 bg-[#d4af37] rounded-full shadow-[0_0_15px_rgba(212,175,55,0.4)] pointer-events-none transform -translate-x-1/2 z-20 transition-transform active:scale-110"
+                className="absolute w-7 h-7 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.5)] pointer-events-none transform -translate-x-1/2 z-20"
                 style={{ left: `${internalValue}%` }}
             >
-                <div className="w-full h-full rounded-full border-2 border-white/20"></div>
             </div>
         </div>
     );

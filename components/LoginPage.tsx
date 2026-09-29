@@ -1,8 +1,9 @@
 import { FrankSignature } from "./FrankSignature";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ActionButton } from './ActionButton';
 import { PlayingCard } from './PlayingCard';
 import { Suit } from '../types';
+import { useLanguage } from '../services/i18n';
 
 interface LoginPageProps {
     onLogin: (username: string) => void;
@@ -10,21 +11,16 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
+    const { t } = useLanguage();
     const [username, setUsername] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [systemStatus, setSystemStatus] = useState('• AWAITING INPUT');
 
-    useEffect(() => {
-        if (isLoading) {
-            setSystemStatus('• AUTHENTICATING...');
-        } else if (username.length > 2) {
-            setSystemStatus('• IDENTITY DETECTED');
-        } else if (username.length > 0) {
-            setSystemStatus('• ANALYZING...');
-        } else {
-            setSystemStatus('• AWAITING INPUT');
-        }
-    }, [username, isLoading]);
+    const getSystemStatus = () => {
+        if (isLoading) return t.login.statusAuthenticating;
+        if (username.length > 2) return t.login.statusIdentified;
+        if (username.length > 0) return t.login.statusAnalyzing;
+        return t.login.statusAwaiting;
+    };
 
     const handleEnter = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -88,12 +84,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
 
                     <div className="relative">
                         <h1 className="mb-2 drop-shadow-2xl">
-                            <FrankSignature title="Frank" className="w-56 md:w-80 h-auto text-white drop-shadow-[0_0_24px_rgba(212,175,55,0.25)]" />
+                            <FrankSignature title={t.login.signatureTitle} className="w-56 md:w-80 h-auto text-white drop-shadow-[0_0_24px_rgba(212,175,55,0.25)]" />
                         </h1>
                         <div className="absolute -inset-1 blur-xl bg-white/10 rounded-full opacity-0 animate-pulse delay-1000" />
                         <h2 className="text-[#d4af37] font-mono tracking-[0.5em] text-xs md:text-sm uppercase pl-1 drop-shadow-lg flex items-center justify-center gap-2">
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
-                            Frank's Hold'em
+                            {t.gameSubtitle}
                             <span className="w-1 h-1 bg-[#d4af37] rounded-full inline-block" />
                         </h2>
                     </div>
@@ -108,7 +104,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="ENTER CALLSIGN"
+                            placeholder={t.login.callsignPlaceholder}
                             className="
                                 relative z-10 w-full bg-transparent border-b border-white/10 py-4
                                 font-mono text-center text-xl text-white placeholder:text-white/20
@@ -129,12 +125,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
                             disabled={isLoading || !username.trim()}
                             className="w-full tracking-[0.2em] text-xs py-5 shadow-[0_0_30px_rgba(212,175,55,0.1)] hover:shadow-[0_0_50px_rgba(212,175,55,0.2)]"
                         >
-                            {isLoading ? 'INITIALIZING...' : 'ESTABLISH LINK'}
+                            {isLoading ? t.login.btnInit : t.login.btnEstablish}
                         </ActionButton>
 
                         <div className="h-4 flex items-center justify-center">
                             <span className={`text-[0.6rem] font-mono tracking-widest uppercase transition-colors duration-300 ${isLoading ? 'text-[#d4af37] animate-pulse' : 'text-white/30'}`}>
-                                {systemStatus}
+                                {getSystemStatus()}
                             </span>
                         </div>
                     </div>
@@ -142,9 +138,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, isExiting }) => {
 
                 {/* Footer Status */}
                 <div className="text-[0.6rem] text-white/20 font-mono tracking-widest uppercase animate-in fade-in duration-1000 delay-500 flex gap-4 border-t border-white/5 pt-4">
-                    <span>Sys v1.0.0</span>
+                    <span>{t.sysVersion}</span>
                     <span>•</span>
-                    <span>Made by 范不着Frank</span>
+                    <span>{t.madeBy}</span>
                 </div>
             </div>
         </div>

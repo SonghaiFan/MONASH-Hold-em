@@ -6,7 +6,7 @@ import { generateDeck, initializeGame } from '../constants';
 import { GamePhase, GameState, PlayerAction, GameConfig, Player } from '../types';
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
-import { ActionButton } from './ActionButton';
+import { useLanguage } from '../services/i18n';
 
 interface PokerGameProps {
     config: GameConfig;
@@ -16,6 +16,7 @@ interface PokerGameProps {
 }
 
 export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthChange, onExit }) => {
+    const { t } = useLanguage();
     // Centralized Game State
     const [gameState, setGameState] = useState<GameState>(() => initializeGame(config));
 
@@ -27,6 +28,11 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
 
     // Ref to prevent multiple AI calls for the same turn
     const aiProcessingRef = useRef(false);
+
+    // Folded and done watching: play the rest of the hand without pauses, then deal the next
+    const [skipping, setSkipping] = useState(false);
+    const skippingRef = useRef(false);
+    skippingRef.current = skipping;
 
     // --- LOGIC HELPERS ---
 
@@ -69,6 +75,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
     // Initialize/Reset Hand
     const startNewHand = useCallback(() => {
         setAiIntent(null);
+        setSkipping(false);
         setGameState(prevState => {
             const newDeck = generateDeck();
 
@@ -263,10 +270,10 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                         isRunningOut: !stopRunout
                     };
                 });
-            }, 1200);
+            }, skipping ? 150 : 1200);
             return () => clearTimeout(timer);
         }
-    }, [gameState.isRunningOut, gameState.phase]);
+    }, [gameState.isRunningOut, gameState.phase, skipping]);
 
     // 2. SHOWDOWN CALCULATION EFFECT
     useEffect(() => {
@@ -319,7 +326,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
 
             const activePlayers = gameState.players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
             const playerCount = activePlayers.length;
-            const totalRevealTime = (playerCount * 1500) + 1000;
+            const totalRevealTime = skippingRef.current ? 300 : (playerCount * 1500) + 1000;
 
             const timer = setTimeout(() => {
                 setGameState(p => payoutFn(p));
@@ -631,7 +638,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                 setTimeout(() => {
                     handlePlayerAction(activePlayer.id, decision.action, decision.amount, decision.reasoning);
                     aiProcessingRef.current = false;
-                }, 1000);
+                }, skippingRef.current ? 0 : 1000);
             };
 
             makeAIMove();
@@ -659,76 +666,89 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
         else gameStatus = 'complete';
     }
 
-    if (!humanPlayer) return <div>Loading System...</div>;
+    // A skipped hand deals the next one itself — unless the table is over for you
+    useEffect(() => {
+        if (skipping && gameStatus === 'complete') startNewHand();
+    }, [skipping, gameStatus, startNewHand]);
+
+    if (!humanPlayer) return <div>{t.game.loading}</div>;
 
     return (
-        <div className="flex flex-col h-full w-full z-10 overflow-hidden relative">
-            <button
-                onClick={() => onExit(humanPlayer.chips)}
-                className="absolute top-4 left-4 z-50 p-2 rounded-full bg-black/40 text-white/30 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md"
-                title="Exit Game"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-            </button>
-
+        <div
+            className="h-full w-full bg-black overflow-hidden relative"
+            style={{
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+            }}
+        >
             {/* READY OVERLAY */}
             {!hasStarted && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-                    <div className="flex flex-col items-center gap-4 md:gap-6 p-4 md:p-8 relative">
-                        <div className="absolute inset-0 bg-[#d4af37]/5 blur-3xl rounded-full" />
-                        <div className="text-base md:text-2xl font-light tracking-widest text-white font-sans uppercase relative z-10 text-center">
-                            Table Initialized
-                        </div>
-                        <ActionButton
-                            onClick={handleStartGame}
-                            variant="gold"
-                            className="px-8 py-4 md:px-12 md:py-6 text-xs md:text-lg tracking-[0.2em] md:tracking-[0.3em] relative z-10 shadow-[0_0_30px_rgba(212,175,55,0.2)] md:shadow-[0_0_50px_rgba(212,175,55,0.3)] hover:shadow-[0_0_70px_rgba(212,175,55,0.5)]"
-                        >
-                            I'M READY
-                        </ActionButton>
-                    </div>
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-black/80 backdrop-blur-md">
+                    <span className="text-[15px] text-white/55">{t.game.tableReady}</span>
+                    <button
+                        type="button"
+                        onClick={handleStartGame}
+                        className="h-[52px] px-10 rounded-full bg-white text-black text-[16px] active:scale-[0.97] transition-transform cursor-pointer"
+                    >
+                        {t.game.imReady}
+                    </button>
                 </div>
             )}
 
-            {/* AI Stratum: Flies in from TOP */}
-            <div className="w-full shrink-0 animate-slide-in-top z-30">
-                <AIStratum
-                    players={aiPlayers}
-                    activePlayerId={gameState.activePlayerId}
-                    phase={gameState.phase}
-                    humanHasFolded={humanHasFolded}
-                    winningHand={gameState.winningHand}
-                    aiIntent={aiIntent}
-                />
-            </div>
+            {/* One phone-wide column: seats, board, you */}
+            <div className="h-full w-full max-w-[480px] mx-auto flex flex-col">
+                <div className="shrink-0 h-14 flex items-center px-3">
+                    <button
+                        type="button"
+                        onClick={() => onExit(humanPlayer.chips)}
+                        className="p-2 text-white hover:opacity-60 transition-opacity cursor-pointer"
+                        title={t.game.exitTitle}
+                        aria-label={t.game.exitTitle}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                </div>
 
-            {/* Table Stratum: Zooms/Fades in with Delay */}
-            <div className="w-full grow flex flex-col justify-center animate-zoom-fade-in z-10" style={{ animationDelay: '0.3s' }}>
-                <TableStratum
-                    pot={gameState.pot}
-                    board={gameState.board}
-                    phase={gameState.phase}
-                    winningHand={gameState.winningHand}
-                />
-            </div>
+                <div className="shrink-0 animate-slide-in-top">
+                    <AIStratum
+                        players={aiPlayers}
+                        activePlayerId={gameState.activePlayerId}
+                        phase={gameState.phase}
+                        humanHasFolded={humanHasFolded}
+                        winningHand={gameState.winningHand}
+                        aiIntent={aiIntent}
+                    />
+                </div>
 
-            {/* Player Stratum: Flies in from BOTTOM */}
-            <div className="w-full shrink-0 animate-slide-in-bottom z-30">
-                <PlayerStratum
-                    player={humanPlayer}
-                    potSize={gameState.pot}
-                    onAction={(a, amt) => handlePlayerAction(humanPlayer.id, a, amt)}
-                    canAct={isHumanTurn}
-                    toCall={humanToCall}
-                    gameStatus={gameStatus}
-                    onNextHand={startNewHand}
-                    onRebuy={handleRebuy}
-                    canRebuy={canRebuy}
-                    onRestart={handleRestartGame}
-                    winningHand={gameState.winningHand}
-                    bigBlind={config.blindBig}
-                    phase={gameState.phase}
-                />
+                <div className="flex-1 min-h-0 flex flex-col justify-center animate-zoom-fade-in" style={{ animationDelay: '0.3s' }}>
+                    <TableStratum
+                        pot={gameState.pot}
+                        board={gameState.board}
+                        phase={gameState.phase}
+                        winningHand={gameState.winningHand}
+                    />
+                </div>
+
+                <div className="shrink-0 animate-slide-in-bottom">
+                    <PlayerStratum
+                        player={humanPlayer}
+                        potSize={gameState.pot}
+                        board={gameState.board}
+                        onAction={(a, amt) => handlePlayerAction(humanPlayer.id, a, amt)}
+                        canAct={isHumanTurn}
+                        toCall={humanToCall}
+                        gameStatus={gameStatus}
+                        onNextHand={startNewHand}
+                        onSkipHand={() => setSkipping(true)}
+                        skipping={skipping}
+                        onRebuy={handleRebuy}
+                        canRebuy={canRebuy}
+                        onRestart={handleRestartGame}
+                        winningHand={gameState.winningHand}
+                        bigBlind={config.blindBig}
+                        phase={gameState.phase}
+                    />
+                </div>
             </div>
         </div>
     );

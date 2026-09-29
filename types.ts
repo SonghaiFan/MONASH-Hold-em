@@ -51,6 +51,7 @@ export interface Player {
   reasoningHistory?: string[]; // AI's internal thought process history
   persona?: Persona; // AI only
   model?: string; // AI only: per-player OpenRouter model override
+  prompt?: string; // AI only: replaces the default play instructions for this player (empty = default)
   tilt?: number; // AI only: current aggression multiplier from recent losses (1 = calm)
   handStartChips?: number; // AI only: stack at the start of the current hand, for tilt tracking
 }
@@ -91,6 +92,14 @@ export interface AIModelOption {
   pricePerM: { input: number; output: number }; // USD per million tokens, from OpenRouter
 }
 
+// One opponent as set up in the lobby.
+export interface OpponentSeat {
+  name: string;
+  model: string;
+  strategy?: string; // a PERSONAS key; absent or "RAW" means the model's own judgement
+  prompt?: string;
+}
+
 export interface GameConfig {
   playerName?: string; // Added for login flow
   startingStackHuman: number;
@@ -99,7 +108,7 @@ export interface GameConfig {
   opponentCount: number; // derived from opponentModels when that is set
   aiModel: string; // default OpenRouter model for any opponent without one of its own
   opponentModels?: string[]; // one seat per entry; each AI thinks with its own model
-  opponents?: { name: string; model: string }[]; // named seats; takes precedence over opponentModels
+  opponents?: OpponentSeat[]; // named seats; takes precedence over opponentModels
 }
 
 export interface GameState {
