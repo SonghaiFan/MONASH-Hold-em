@@ -73,6 +73,26 @@ export interface Translations {
     defaultTag: string;
     editedTag: string;
     restoreDefault: string;
+    previewTitle: (name: string) => string;
+    previewSub: string;
+    previewToggle: string;
+    streets: Record<string, string>;
+    noBoard: string;
+    yourWords: string;
+    rules: string;
+    rulesNote: string;
+    rulesSummary: (legal: number, sizes: number) => string;
+    table: string;
+    tableNote: string;
+    tableNoteRefs: string;
+    tableSummary: string;
+    tokens: (n: number) => string;
+    words: (n: number) => string;
+    shareOfRead: (pct: number) => string;
+    costPer100: (usd: number) => string;
+    lessIsMore: (name: string) => string;
+    tooLong: string;
+    pointAt: string;
   };
 
   venues: Record<
@@ -229,6 +249,26 @@ export const translations: Record<Language, Translations> = {
       defaultTag: "Default",
       editedTag: "Edited",
       restoreDefault: "Restore default",
+      previewTitle: (name) => `What ${name} reads`,
+      previewSub: "The exact request sent before each decision, played through a sample hand.",
+      previewToggle: "What they read, street by street",
+      streets: { PRE_FLOP: "Preflop", FLOP: "Flop", TURN: "Turn", RIVER: "River" },
+      noBoard: "No board yet",
+      yourWords: "Your words",
+      rules: "Game rules",
+      rulesNote: "Added by the game and not editable: the answer's shape and what is legal right now.",
+      rulesSummary: (legal, sizes) => `${legal} legal actions${sizes ? ` · ${sizes} bet sizes` : ""} · answer format`,
+      table: "The table",
+      tableNote: "Recomputed for every decision. Point at a field with backticks and it lights up here.",
+      tableNoteRefs: "Recomputed for every decision. The fields your words point at are lit.",
+      tableSummary: "Equity, pot odds, stacks, positions and the action so far",
+      tokens: (n) => `≈${n.toLocaleString()} tok`,
+      words: (n) => `${n} ${n === 1 ? "word" : "words"}`,
+      shareOfRead: (pct) => `Your words are ${pct}% of what they read`,
+      costPer100: (usd) => `$${(usd < 0.01 ? usd.toPrecision(2) : usd.toFixed(2))} / 100 decisions`,
+      lessIsMore: (name) => `Less is more. The table already carries the numbers, so say only how ${name} should lean, and point at a field rather than restate it.`,
+      tooLong: "Long prompts drown out the table. Try one or two sentences.",
+      pointAt: "Point at",
     },
 
     venues: {
@@ -404,6 +444,26 @@ export const translations: Record<Language, Translations> = {
       defaultTag: "默认",
       editedTag: "已修改",
       restoreDefault: "恢复默认",
+      previewTitle: (name) => `${name} 读到的内容`,
+      previewSub: "用一手示例牌，展示每次决策前真正发送的请求。",
+      previewToggle: "逐街查看它读到的内容",
+      streets: { PRE_FLOP: "翻牌前", FLOP: "翻牌", TURN: "转牌", RIVER: "河牌" },
+      noBoard: "尚无公共牌",
+      yourWords: "你的话",
+      rules: "游戏规则",
+      rulesNote: "由游戏附加，不可编辑：回答的格式，以及当前合法的动作。",
+      rulesSummary: (legal, sizes) => `${legal} 个合法动作${sizes ? ` · ${sizes} 种下注尺度` : ""} · 回答格式`,
+      table: "牌桌",
+      tableNote: "每次决策都会重新计算。用反引号指向某个字段，它会在这里高亮。",
+      tableNoteRefs: "每次决策都会重新计算。你的话指向的字段已高亮。",
+      tableSummary: "胜率、底池赔率、筹码、位置与目前的行动",
+      tokens: (n) => `≈${n.toLocaleString()} tok`,
+      words: (n) => `${n} 词`,
+      shareOfRead: (pct) => `你的话占它读到内容的 ${pct}%`,
+      costPer100: (usd) => `每 100 次决策 $${(usd < 0.01 ? usd.toPrecision(2) : usd.toFixed(2))}`,
+      lessIsMore: (name) => `少即是多。数字牌桌上都有，只需说明 ${name} 该偏向哪边，并直接指向字段，而不是复述它。`,
+      tooLong: "提示词太长会淹没牌桌信息。试着精简到一两句。",
+      pointAt: "指向",
     },
 
     venues: {

@@ -335,6 +335,12 @@
             to { transform: translateY(0); }
         }
 
+        /* On a desktop the tuner rises a little and settles instead. */
+        @keyframes panel-in {
+            from { opacity: 0; transform: translateY(16px) scale(0.985); }
+            to { opacity: 1; transform: none; }
+        }
+
         @keyframes fade-in {
             from { opacity: 0; }
             to { opacity: 1; }
