@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, GamePhase, Suit } from "../types";
 import { useLanguage } from "../services/i18n";
 import {
@@ -43,6 +43,7 @@ const MiniCard: React.FC<{ card?: Card }> = ({ card }) => (
 // Does this backtick name point at the node at `path` (list entries written as [])?
 const points = (name: string, path: string, topKeys: Set<string>) => {
   const n = name.replace(/^state\./, "");
+  if (n === "state" && path === "") return true;
   if (n === path || n === path.replace(/\[\]/g, "")) return true;
   // A key inside list entries, written on its own: `reads`, `estimatedRange`
   return !n.includes(".") && !topKeys.has(n) && path.includes("[]") && path.endsWith(`.${n}`);
@@ -136,6 +137,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({
   chartPreflop,
 }) => {
   const { t } = useLanguage();
+  const [stateOpen, setStateOpen] = useState(false);
   const situation = sampleSituation(name, street);
   const state = situation.state as Record<string, unknown>;
   const topKeys = useMemo(() => new Set(Object.keys(state)), [state]);
@@ -154,9 +156,13 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({
   // Bring the picked field into view in the state below
   const selectedRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    if (selected) setStateOpen(true);
+  }, [selected]);
+  useEffect(() => {
+    if (!stateOpen) return;
     selectedRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     selectedRef.current = null;
-  }, [selected, street]);
+  }, [selected, street, stateOpen]);
 
   const cost = costPerDecision(modelId, parts.tokens.total) * 100;
   const costText = cost === 0 ? "$0" : cost < 0.1 ? `$${cost.toFixed(3)}` : `$${cost.toFixed(2)}`;
@@ -190,7 +196,7 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({
       </div>
 
       {/* The sample hand at this point */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex gap-1">
           {sampleHole.map((c) => (
             <MiniCard key={c.id} card={c} />
@@ -271,17 +277,17 @@ export const PromptPreview: React.FC<PromptPreviewProps> = ({
       </details>
 
       {/* The state itself */}
-      <section>
-        <div className="flex items-baseline justify-between mb-2">
+      <details open={stateOpen} onToggle={(event) => setStateOpen(event.currentTarget.open)} className="group rounded-[18px] bg-black/35 border border-white/10">
+        <summary className="flex items-center justify-between gap-2 px-4 min-h-11 cursor-pointer text-[13px] text-white/70">
           <h4 className="text-[13px] text-white/45">
-            <code className="font-mono text-white/70">state</code> {t.seat.stateTitle}
+            {t.seat.stateTitle}
           </h4>
           <span className="text-[12px] text-white/35 tabular-nums">~{parts.tokens.table}</span>
-        </div>
-        <div className="rounded-[18px] bg-black/35 border border-white/10 py-3 font-mono text-[12px] leading-[1.75] overflow-x-auto">
+        </summary>
+        <div className="max-h-[360px] py-3 font-mono text-[12px] leading-[1.75] overflow-x-auto">
           <JsonRows value={state} path="" depth={0} last lit={lit} inherited={null} selectedRef={selectedRef} />
         </div>
-      </section>
+      </details>
     </div>
   );
 };

@@ -63,7 +63,7 @@ const serialize = (root: Node): string => {
 // Where the selection starts and ends, counted in characters of the text
 const selectionIn = (root: HTMLElement): { start: number; end: number } | null => {
   const sel = window.getSelection();
-  if (!sel || !sel.rangeCount || !root.contains(sel.anchorNode)) return null;
+  if (!sel || !sel.rangeCount || (!root.contains(sel.anchorNode) || !root.contains(sel.focusNode))) return null;
   const range = sel.getRangeAt(0);
   const upTo = (node: Node, offset: number) => {
     const r = document.createRange();
@@ -243,7 +243,8 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
       const at = caretOffset(el) ?? s.from + 1 + s.query.length;
       const after = text.slice(at);
       const token = `\`${path}\`${after && /^[\s.,;:!?)]/.test(after) ? "" : " "}`;
-      const next = (text.slice(0, s.from) + token + after).slice(0, limit);
+      const next = text.slice(0, s.from) + token + after;
+      if (next.length > limit) return;
       setSuggest(null);
       commit(next, s.from + token.length);
     };
@@ -287,8 +288,10 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
       const text = serialize(el);
       const { start: at, end } = selectionIn(el) ?? { start: text.length, end: text.length };
       const pasted = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
-      const next = (text.slice(0, at) + pasted + text.slice(end)).slice(0, limit);
-      commit(next, Math.min(at + pasted.length, next.length));
+      const available = Math.max(0, limit - (text.length - (end - at)));
+      const inserted = pasted.slice(0, available);
+      const next = text.slice(0, at) + inserted + text.slice(end);
+      commit(next, at + inserted.length);
     };
 
     useImperativeHandle(ref, () => ({
@@ -299,7 +302,8 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
         const before = text.slice(0, at);
         const after = text.slice(at);
         const token = `${before && !/\s$/.test(before) ? " " : ""}\`${path}\`${after && /^[\s.,;:!?)]/.test(after) ? "" : " "}`;
-        const next = (before + token + after).slice(0, limit);
+        const next = before + token + after;
+        if (next.length > limit) return;
         el.focus();
         commit(next, Math.min(before.length + token.length, next.length));
       },

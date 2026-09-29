@@ -123,7 +123,7 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
     return () => clearTimeout(timer);
   }, [seat.id]);
   const [picked, setPicked] = useState<string | null>(null);
-  const [showValues, setShowValues] = useState(true);
+  const [showValues, setShowValues] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const spot = sampleSituation(seat.id, street).state as Record<string, unknown>;
   const valueOf = (name: string) => valueAt(spot, name);
@@ -228,7 +228,7 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
 
   const promptSection = (
     <section>
-      <div className="flex items-center justify-between gap-3 mb-2 min-h-7">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2 min-h-7">
         <h3 className="text-[14px] text-white/45 flex items-center gap-2">
           {t.seat.prompt}
           <span className={`h-5 px-2 rounded-full text-[12px] leading-5 ${edited ? "bg-[#f5e35b] text-black" : "bg-white/[0.08] text-white/55"}`}>
@@ -314,7 +314,7 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
 
         <div className="absolute inset-5 xl:inset-8 mx-auto max-w-[1480px] flex flex-col rounded-[28px] bg-[#1c1c1e] border border-white/[0.06] shadow-2xl shadow-black/60 overflow-hidden animate-[panel-in_360ms_cubic-bezier(0.19,1,0.22,1)]">
           <header className="shrink-0 flex items-center gap-4 px-6 h-[76px] border-b border-white/[0.06]">
-            <img src={avatarFor(seat.id)} alt="" draggable={false} className="w-11 h-11 object-contain" />
+            <Avatar name={seat.id} alt="" draggable={false} className="w-11 h-11 object-contain" />
             <div className="min-w-0">
               <div className="text-[19px] text-white leading-tight truncate">{seat.id}</div>
               <div className="text-[13px] text-white/45 truncate">{subtitle}</div>
@@ -328,15 +328,19 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
             </button>
           </header>
 
-          <div className="flex-1 min-h-0 grid grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1.1fr)_minmax(0,1fr)]">
             {/* The player */}
-            <aside className="min-h-0 overflow-y-auto no-scrollbar px-6 py-6 space-y-7 border-r border-white/[0.06]">
+            <aside className="hidden 2xl:block min-h-0 overflow-y-auto no-scrollbar px-6 py-6 space-y-7 border-r border-white/[0.06]">
               {modelSection}
               {styleSection}
             </aside>
 
             {/* The prompt, and the fields it can point at */}
             <main className="min-h-0 overflow-y-auto no-scrollbar px-6 py-6 space-y-5">
+              <div className="2xl:hidden space-y-5">
+                {modelSection}
+                {styleSection}
+              </div>
               {promptSection}
               {variables}
             </main>
