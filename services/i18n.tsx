@@ -81,6 +81,27 @@ export interface Translations {
     sometimes: string;
     insertVariable: string;
     unknownVariables: string;
+    unknownVariable: string;
+    notThisStreet: string;
+    childField: string;
+    valueHere: string;
+    showValues: string;
+    typeBacktick: string;
+    previewTitle: string;
+    previewNote: string;
+    previewToggle: string;
+    legalHere: string;
+    tokenParts: { yours: string; rules: string; table: string };
+    tokens: (n: number) => string;
+    costPer100: (usd: string) => string;
+    renderedTitle: string;
+    renderedNote: string;
+    gameAdds: string;
+    gameAddsDecisions: string;
+    stateTitle: string;
+    chartPreflop: string;
+    chartShort: string;
+    settings: string;
   };
 
   stylePad: {
@@ -274,6 +295,27 @@ export const translations: Record<Language, Translations> = {
       sometimes: "sometimes",
       insertVariable: "Add to the prompt",
       unknownVariables: "Not in state, so the model can't see these:",
+      unknownVariable: "Not in state",
+      notThisStreet: "not on this street",
+      childField: "A key inside each entry of a list",
+      valueHere: "In this spot",
+      showValues: "Show values",
+      typeBacktick: "Type ` to add a field",
+      previewTitle: "What the model reads",
+      previewNote: "A sample hand from the button, run through the same code the table uses. Pick a street to see that decision.",
+      previewToggle: "Preview on a sample hand",
+      legalHere: "Legal here",
+      tokenParts: { yours: "Prompt", rules: "Game rules", table: "Table" },
+      tokens: (n) => `~${n} tokens`,
+      costPer100: (usd) => `${usd} / 100 decisions`,
+      renderedTitle: "Your prompt, in this spot",
+      renderedNote: "Fields are filled in here for you to check. The model gets the names as written, and looks them up in state below.",
+      gameAdds: "Added by the game: answer format and legal actions",
+      gameAddsDecisions: "Added by the game: the typed questions",
+      stateTitle: "— sent with every decision",
+      chartPreflop: "This style plays preflop from the hand chart, so the model is only asked from the flop on.",
+      chartShort: "chart",
+      settings: "Player",
       done: "Done",
       customPrompt: "Prompt edited",
       offMenu: "Not served here",
@@ -500,6 +542,27 @@ export const translations: Record<Language, Translations> = {
       sometimes: "视情况",
       insertVariable: "插入到提示词",
       unknownVariables: "state 里没有这些字段，模型看不到：",
+      unknownVariable: "state 中没有",
+      notThisStreet: "本轮没有",
+      childField: "列表中每一项里的字段",
+      valueHere: "此刻的值",
+      showValues: "显示取值",
+      typeBacktick: "输入 ` 插入字段",
+      previewTitle: "模型读到的内容",
+      previewNote: "用牌桌同一套代码跑一手按钮位的示例牌。切换轮次，查看每次决策时的内容。",
+      previewToggle: "在示例牌局中预览",
+      legalHere: "可选动作",
+      tokenParts: { yours: "提示词", rules: "游戏规则", table: "牌桌" },
+      tokens: (n) => `约 ${n} tokens`,
+      costPer100: (usd) => `每 100 次决策 ${usd}`,
+      renderedTitle: "你的提示词，在这一刻",
+      renderedNote: "这里把字段替换成取值，方便你检查。模型收到的仍是字段名，并在下方的 state 中查找。",
+      gameAdds: "游戏追加的内容：回答格式与可选动作",
+      gameAddsDecisions: "游戏追加的内容：结构化问题",
+      stateTitle: "— 每次决策都会发送",
+      chartPreflop: "这种风格翻牌前按起手牌表行动，只有翻牌后才会询问模型。",
+      chartShort: "牌表",
+      settings: "玩家",
       done: "完成",
       customPrompt: "提示词已修改",
       offMenu: "本场不提供",

@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import { useLanguage } from "../services/i18n";
 import { FIELD_GROUPS, FieldGroup, PROMPT_FIELDS } from "../services/promptFields";
+import { formatValue } from "../services/promptPreview";
 
 interface PromptVariablesProps {
   used: Set<string>; // names the prompt already refers to
   onInsert: (path: string) => void;
+  valueOf?: (path: string) => unknown; // what each field holds in the previewed spot
+  className?: string;
 }
 
 // What a prompt can point at: the fields of the `state` every decision is sent
 // with, a group at a time. Tapping one writes it into the prompt, in backticks.
-export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert }) => {
+export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert, valueOf, className = "" }) => {
   const { t, lang } = useLanguage();
   const [group, setGroup] = useState<FieldGroup>("you");
   // A key inside list entries also counts written on its own: `reads` for `tableInActionOrder[].reads`
@@ -17,7 +20,7 @@ export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert
     used.has(path) || used.has(path.replace("[]", "")) || (path.includes("[]") && used.has(path.split(".").pop()!));
 
   return (
-    <div className="rounded-[20px] bg-black/35 border border-white/10 overflow-hidden">
+    <div className={`rounded-[20px] bg-black/35 border border-white/10 overflow-hidden ${className}`}>
       <div className="px-4 pt-3.5">
         <div className="text-[15px] text-white">{t.seat.variables}</div>
         <p className="mt-1 text-[13px] leading-snug text-white/45">{t.seat.variablesNote}</p>
@@ -46,6 +49,7 @@ export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert
       <ul className="max-h-[280px] overflow-y-auto no-scrollbar pb-2">
         {PROMPT_FIELDS.filter((f) => f.group === group).map((f) => {
           const on = isUsed(f.path);
+          const live = valueOf ? valueOf(f.path) : f.example;
           return (
             <li key={f.path}>
               <button
@@ -66,7 +70,9 @@ export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert
                   </span>
                 </span>
                 <span className="block mt-0.5 text-[13px] leading-snug text-white/55">{f.desc[lang]}</span>
-                <span className="block mt-0.5 font-mono text-[11px] text-white/30 truncate">{f.example}</span>
+                <span className={`block mt-0.5 font-mono text-[11px] truncate ${live === undefined ? "text-white/25 italic" : valueOf ? "text-[#f5e35b]/60" : "text-white/30"}`}>
+                  {live === undefined ? t.seat.notThisStreet : formatValue(live)}
+                </span>
               </button>
             </li>
           );
