@@ -9,6 +9,7 @@ import { GamePhase, GameState, PlayerAction, GameConfig, Player } from '../types
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
 import { recordAction, startHandStats } from '../services/playerStats';
+import { entryKey, loadSeatStats, saveSessionStats } from '../services/seatStats';
 import { useLanguage } from '../services/i18n';
 
 interface PokerGameProps {
@@ -246,6 +247,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
     const handleRestartGame = useCallback(() => {
         const hero = gameState.players.find(p => p.isHuman);
         onWealthChange((hero?.chips ?? 0) - config.startingStackHuman);
+        statsBase.current = loadSeatStats(config.playerName); // the new table's stats start from zero: bank this one's
         setGameState(initializeGame(config));
         setTimeout(() => startNewHand(), 100);
     }, [startNewHand, config, gameState.players, onWealthChange]);
@@ -684,6 +686,18 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
         else if (isHumanBusted) gameStatus = 'busted';
         else gameStatus = 'complete';
     }
+
+    // Each finished hand adds to every opponent's record across sessions (per style),
+    // so the lobby can show how a style you set actually played
+    const statsBase = useRef(loadSeatStats(config.playerName));
+    useEffect(() => {
+        if (!gameState.winningHand) return;
+        const session: Record<string, NonNullable<Player['stats']>> = {};
+        gameState.players.forEach(p => {
+            if (!p.isHuman && p.styleKey && p.stats) session[entryKey(p.name, p.styleKey)] = p.stats;
+        });
+        saveSessionStats(config.playerName, statsBase.current, session);
+    }, [gameState.winningHand]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // A skipped hand deals the next one itself — unless the table is over for you
     useEffect(() => {

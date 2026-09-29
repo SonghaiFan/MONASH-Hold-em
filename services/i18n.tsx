@@ -69,10 +69,38 @@ export interface Translations {
     editedTag: string;
     restoreDefault: string;
     targets: (vpip: number, pfr: number) => string;
+    naturalSwitch: string;
+    naturalSwitchSub: string;
+    custom: string;
+    record: (hands: number, vpip: number, pfr: number, afq: number | null) => string;
+    recordFew: (hands: number, needed: number) => string;
+    noRecord: string;
+    variables: string;
+    variablesNote: string;
+    fieldGroups: Record<"you" | "table" | "maths" | "opponents" | "history", string>;
+    sometimes: string;
+    insertVariable: string;
+    unknownVariables: string;
+  };
+
+  stylePad: {
+    label: string;
+    aggressive: string;
+    aggressiveSub: string;
+    passive: string;
+    passiveSub: string;
+    tight: string;
+    tightSub: string;
+    loose: string;
+    looseSub: string;
+    actual: string;
+    corners: Record<string, string>; // short names for the chips in the map's corners
   };
 
   hud: {
     hands: (n: number) => string;
+    handsLabel: string;
+    handsSub: string;
     vpipHint: string;
     pfrHint: string;
     afqHint: string;
@@ -240,6 +268,12 @@ export const translations: Record<Language, Translations> = {
       prompt: "Prompt",
       promptPlaceholder: "How should they play? e.g. You're a retired pro who can't stand limpers.",
       promptNote: "What this AI is told before every decision. Change it and only this AI thinks differently.",
+      variables: "What the model can see",
+      variablesNote: "Every decision, the model is sent the whole spot as a JSON object called `state`. To point it at a field, write the field's name in backticks, like `equityPercent`. Tap one to add it.",
+      fieldGroups: { you: "Your hand", table: "Table", maths: "Maths", opponents: "Opponents", history: "History" },
+      sometimes: "sometimes",
+      insertVariable: "Add to the prompt",
+      unknownVariables: "Not in state, so the model can't see these:",
       done: "Done",
       customPrompt: "Prompt edited",
       offMenu: "Not served here",
@@ -247,10 +281,33 @@ export const translations: Record<Language, Translations> = {
       editedTag: "Edited",
       restoreDefault: "Restore default",
       targets: (vpip, pfr) => `Plays about ${vpip}% of hands, raises ${pfr}% before the flop`,
+      naturalSwitch: "Let the model decide",
+      naturalSwitchSub: "No targets: the model plays every street its own way",
+      custom: "Custom",
+      record: (hands, vpip, pfr, afq) =>
+        `At your tables, ${hands} hands: VPIP ${vpip}% · PFR ${pfr}%${afq !== null ? ` · AFq ${afq}%` : ""}`,
+      recordFew: (hands, needed) => `${hands} of ${needed} hands played with this style; its ring appears after ${needed}`,
+      noRecord: "No hands played with this style yet",
+    },
+
+    stylePad: {
+      label: "Style map",
+      aggressive: "Aggressive",
+      aggressiveSub: "More bets & raises",
+      passive: "Passive",
+      passiveSub: "More calls",
+      tight: "Tight",
+      tightSub: "Less hands",
+      loose: "Loose",
+      looseSub: "More hands",
+      actual: "How it actually played",
+      corners: { TAG: "TAG", LAG: "LAG", NIT: "ROCK", FISH: "FISH" },
     },
 
     hud: {
       hands: (n) => (n === 1 ? "1 hand" : `${n} hands`),
+      handsLabel: "Hands",
+      handsSub: "Played with this style",
       vpipHint: "Puts money in before the flop",
       pfrHint: "Raises before the flop",
       afqHint: "Bets or raises after the flop",
@@ -437,6 +494,12 @@ export const translations: Record<Language, Translations> = {
       prompt: "提示词",
       promptPlaceholder: "他该怎么打？例如：你是一位退役职业牌手，最看不惯溜进底池的人。",
       promptNote: "每次做决定前，模型都会读到这段话。改动只影响这一位 AI。",
+      variables: "模型能看到的数据",
+      variablesNote: "每次决策，模型都会收到一份叫 `state` 的 JSON，里面是这一手的全部情况。想让它关注某个字段，就在提示词里用反引号写出字段名，比如 `equityPercent`。点一下即可插入。",
+      fieldGroups: { you: "你的牌", table: "牌桌", maths: "计算", opponents: "对手", history: "历史" },
+      sometimes: "视情况",
+      insertVariable: "插入到提示词",
+      unknownVariables: "state 里没有这些字段，模型看不到：",
       done: "完成",
       customPrompt: "提示词已修改",
       offMenu: "本场不提供",
@@ -444,10 +507,33 @@ export const translations: Record<Language, Translations> = {
       editedTag: "已修改",
       restoreDefault: "恢复默认",
       targets: (vpip, pfr) => `约 ${vpip}% 的牌入池，翻牌前加注约 ${pfr}%`,
+      naturalSwitch: "交给模型自己判断",
+      naturalSwitchSub: "不设目标：每条街都由模型按自己的方式决定",
+      custom: "自定义",
+      record: (hands, vpip, pfr, afq) =>
+        `在你的牌桌上打了 ${hands} 手：VPIP ${vpip}% · PFR ${pfr}%${afq !== null ? ` · AFq ${afq}%` : ""}`,
+      recordFew: (hands, needed) => `这个风格已打 ${hands} / ${needed} 手，满 ${needed} 手后显示实际位置`,
+      noRecord: "这个风格还没打过",
+    },
+
+    stylePad: {
+      label: "风格图",
+      aggressive: "激进",
+      aggressiveSub: "更多下注和加注",
+      passive: "被动",
+      passiveSub: "更多跟注",
+      tight: "紧",
+      tightSub: "入池更少",
+      loose: "松",
+      looseSub: "入池更多",
+      actual: "实际打出来的位置",
+      corners: { TAG: "紧凶", LAG: "松凶", NIT: "岩石", FISH: "娱乐" },
     },
 
     hud: {
       hands: (n) => `${n} 手`,
+      handsLabel: "手数",
+      handsSub: "用这个风格打过的手数",
       vpipHint: "翻牌前主动投入筹码",
       pfrHint: "翻牌前加注",
       afqHint: "翻牌后下注或加注",

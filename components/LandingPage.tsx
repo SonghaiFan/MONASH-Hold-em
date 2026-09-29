@@ -8,6 +8,8 @@ import { OpponentSheet } from "./OpponentSheet";
 import { SeatSnake } from "./SeatSnake";
 import { HERO_AVATAR } from "../services/avatars";
 import { NATURAL, SeatSettings, defaultSeat, defaultSeats, loadSeats, saveSeats } from "../services/seats";
+import { CUSTOM, personaFor, styleKeyOf } from "../services/style";
+import { loadSeatStats } from "../services/seatStats";
 
 interface LandingPageProps {
   onStartGame: (config: GameConfig) => void;
@@ -190,6 +192,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   // A desktop has the room to show the table open from the start
   const [unfolded, setUnfolded] = useState(() => window.matchMedia?.("(min-width: 1024px)").matches ?? false);
   const [editing, setEditing] = useState<string | null>(null);
+  // How each seat has played at this player's tables, per style (written by the game after every hand)
+  const [record] = useState(() => loadSeatStats(username));
   const { bind, pressing } = useHold(setEditing);
   const editingIndex = seats.findIndex((s) => s.id === editing);
 
@@ -242,7 +246,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     blindBig: venue.blindBig,
     startingStackHuman: venue.buyIn,
     startingStackAI: venue.buyIn,
-    opponents: seats.map((s, i) => ({ name: s.id, model: modelAt(s, i), strategy: s.strategy, prompt: s.prompt })),
+    opponents: seats.map((s, i) => ({
+      name: s.id,
+      model: modelAt(s, i),
+      strategy: s.strategy,
+      prompt: s.prompt,
+      persona: personaFor(s.strategy, s.style),
+      styleKey: styleKeyOf(s.strategy, s.style),
+    })),
     opponentModels: seats.map((s, i) => modelAt(s, i)),
     opponentCount: seats.length,
   };
@@ -442,7 +453,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             title: seat.id,
             subtitle: [
               AI_MODELS.find((x) => x.id === modelAt(seat, i))?.label,
-              seat.strategy !== NATURAL ? t.personas[seat.strategy]?.name : "",
+              seat.strategy === NATURAL ? "" : seat.strategy === CUSTOM ? t.seat.custom : t.personas[seat.strategy]?.name,
             ]
               .filter(Boolean)
               .join(" · "),
@@ -492,6 +503,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           model={modelAt(seats[editingIndex], editingIndex)}
           onChange={updateSeat}
           onClose={() => setEditing(null)}
+          record={record}
         />
       )}
     </div>

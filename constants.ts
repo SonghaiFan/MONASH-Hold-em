@@ -76,15 +76,15 @@ export const PERSONAS: Record<string, Persona> = {
   NIT: {
     id: "NIT",
     label: "NIT",
-    description: "The rock: folds almost everything, only shows up with premiums.",
-    aggression: 0.8,
+    description: "The rock: folds almost everything, and when it does play, mostly just calls.",
+    aggression: 0.6,
     looseness: 0.5,
     bluffFreq: 0.02,
     sizing: "standard",
     temperature: 0.5,
     tiltFactor: 1.1,
     vpip: 0.12,
-    pfr: 0.09,
+    pfr: 0.04, // tight and passive: the bottom-left corner of the style map
   },
   STATION: {
     id: "STATION",
@@ -298,7 +298,8 @@ export const initializeGame = (
       isActive: true,
       currentBet: 0,
       model: seats[i].model,
-      persona: PERSONAS[seats[i].strategy ?? ""],
+      persona: seats[i].persona ?? PERSONAS[seats[i].strategy ?? ""],
+      styleKey: seats[i].styleKey,
       prompt: seats[i].prompt?.trim() || undefined,
       tilt: 1,
       handStartChips: chips,

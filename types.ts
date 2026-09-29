@@ -70,6 +70,7 @@ export interface Player {
   tilt?: number; // AI only: current aggression multiplier from recent losses (1 = calm)
   handStartChips?: number; // AI only: stack at the start of the current hand, for tilt tracking
   stats?: PlayerStats; // how they have actually played at this table
+  styleKey?: string; // AI only: which style these stats belong to (services/style.ts styleKeyOf)
 }
 
 export enum GamePhase {
@@ -112,8 +113,10 @@ export interface AIModelOption {
 export interface OpponentSeat {
   name: string;
   model: string;
-  strategy?: string; // a PERSONAS key; absent or "RAW" means the model's own judgement
+  strategy?: string; // a PERSONAS key, "CUSTOM", or absent / "RAW" for the model's own judgement
   prompt?: string;
+  persona?: Persona; // resolved in the lobby (a custom style is built from its point)
+  styleKey?: string; // which style the stats this seat earns are filed under
 }
 
 export interface GameConfig {

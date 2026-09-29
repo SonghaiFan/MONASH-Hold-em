@@ -3,11 +3,13 @@
 // bankroll, so a table you have tuned is still there next visit.
 
 import { AI_MODELS, AI_NAMES } from "../constants";
+import { StylePoint } from "./style";
 
 export interface SeatSettings {
   id: string; // the opponent's name; also seeds their face
   model: string; // preferred model; a venue that doesn't serve it substitutes one it does
-  strategy: string; // "RAW" or a PERSONAS key
+  strategy: string; // "RAW", a PERSONAS key, or "CUSTOM" (then `style` is its point)
+  style?: StylePoint;
   prompt: string;
 }
 
@@ -40,6 +42,7 @@ export const loadSeats = (name: string | null): SeatSettings[] | null => {
         id: s.id,
         model: s.model,
         strategy: typeof s.strategy === "string" ? s.strategy : NATURAL,
+        ...(s.style && typeof s.style.x === "number" && typeof s.style.y === "number" ? { style: { x: s.style.x, y: s.style.y } } : {}),
         prompt: typeof s.prompt === "string" ? s.prompt : "",
       }));
   } catch {
