@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { LoginPage } from './components/LoginPage';
 import { LandingPage } from './components/LandingPage';
 import { PokerGame } from './components/PokerGame';
-import { LanguageToggle } from './components/LanguageToggle';
 import { LanguageProvider } from './services/i18n';
 import { GameConfig } from './types';
 import { DEFAULT_CONFIG } from './constants';
@@ -68,13 +67,6 @@ function AppContent() {
     return (
         <main className="w-full h-[100svh] flex flex-col bg-black text-[#e0e0e0] font-sans overflow-hidden relative selection:bg-[#d4af37] selection:text-black">
             
-            {/* Global Language Toggle (LOGIN only; SETUP embeds it in its header; GAME hides it completely) */}
-            {view === 'LOGIN' && (
-                <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50 pointer-events-auto">
-                    <LanguageToggle />
-                </div>
-            )}
-
             {/* View Container */}
             <div className="relative w-full h-full z-10">
                 {view === 'LOGIN' && (

@@ -187,7 +187,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const modelAt = (seat: SeatSettings, i: number) =>
     menu.some((m) => m.id === seat.model) ? seat.model : menu[i % menu.length]?.id ?? AI_MODELS[0].id;
 
-  const [unfolded, setUnfolded] = useState(false);
+  // A desktop has the room to show the table open from the start
+  const [unfolded, setUnfolded] = useState(() => window.matchMedia?.("(min-width: 1024px)").matches ?? false);
   const [editing, setEditing] = useState<string | null>(null);
   const { bind, pressing } = useHold(setEditing);
   const editingIndex = seats.findIndex((s) => s.id === editing);
@@ -195,9 +196,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const updateSeat = (next: SeatSettings) =>
     setSeats((prev) => prev.map((s) => (s.id === next.id ? next : s)));
 
+  // A new opponent takes the top of the list and pushes the rest down; − takes the top one away again
   const addSeat = () =>
-    setSeats((prev) => (prev.length >= MAX_OPPONENTS ? prev : [...prev, defaultSeat(prev.length, prev.map((s) => s.id))]));
-  const removeSeat = () => setSeats((prev) => (prev.length <= MIN_OPPONENTS ? prev : prev.slice(0, -1)));
+    setSeats((prev) => (prev.length >= MAX_OPPONENTS ? prev : [defaultSeat(prev.length, prev.map((s) => s.id)), ...prev]));
+  const removeSeat = () => setSeats((prev) => (prev.length <= MIN_OPPONENTS ? prev : prev.slice(1)));
 
   // --- Venue carousel: cards snap to the left edge; the one there is the one you pick ---
   const scrollToVenue = (i: number) => {
@@ -257,7 +259,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       `}
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="w-full max-w-[480px] mx-auto min-h-full flex flex-col">
+      <div className="w-full max-w-[480px] lg:max-w-[1080px] mx-auto min-h-full flex flex-col">
         {/* You, and the language */}
         <div className="h-14 px-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 h-9 pl-1 pr-3.5 rounded-full bg-[#1c1c1e] min-w-0">
@@ -267,6 +269,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <LanguageToggle />
         </div>
 
+        {/* One column on a phone; on a desktop, where you play on the left and who with on the right */}
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-8 lg:items-start">
+        <div className="lg:min-w-0">
         {/* Bankroll */}
         <div className="px-5 pt-8 pb-9">
           <div className="text-[72px] font-extralight leading-none tracking-tight text-white tabular-nums">
@@ -292,7 +297,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div
           ref={carouselRef}
           onScroll={onCarouselScroll}
-          className="relative flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-5 px-5 shrink-0"
+          className="relative flex lg:hidden gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-px-5 px-5 shrink-0"
         >
           {VENUES.map((v, i) => {
             const open = affordable(v, wealth);
@@ -329,8 +334,71 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="shrink-0 w-[calc(16%-32px)]" aria-hidden />
         </div>
 
+        {/* Desktop: every venue at once, with what each one is */}
+        <div className="hidden lg:grid grid-cols-2 xl:grid-cols-3 gap-3 px-5">
+          {VENUES.map((v, i) => {
+            const open = affordable(v, wealth);
+            const on = i === venueIndex;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => {
+                  setVenueIndex(i);
+                  scrollToVenue(i);
+                }}
+                aria-pressed={on}
+                className={`
+                  relative h-[168px] rounded-[28px] p-5 text-left flex flex-col justify-between
+                  bg-gradient-to-br ${v.bgClass} text-black select-none cursor-pointer
+                  transition-[opacity,transform,box-shadow] duration-300
+                  ${on ? "opacity-100 ring-2 ring-white ring-offset-4 ring-offset-black" : "opacity-55 hover:opacity-80"}
+                `}
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-[40px] leading-none">{v.emoji}</span>
+                  {!open && (
+                    <span className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-black/60">
+                      <Lock />
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[19px] leading-tight tracking-tight truncate">{venueName(v)}</div>
+                  <div className="mt-0.5 text-[13px] text-black/55 truncate">{t.venues[v.id]?.desc ?? v.desc}</div>
+                  <div className="text-[13px] text-black/55 truncate">{t.setup.venueLine(v.buyIn, v.blindBig / 2, v.blindBig)}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Desktop: what the chosen venue serves */}
+        <div className="hidden lg:block px-5 pt-8 pb-8">
+          <div className="flex items-baseline justify-between gap-4">
+            <h3 className="text-[15px] text-white/45">{t.desk.venueMenu}</h3>
+            <span className="text-[13px] text-white/35">
+              {t.desk.venueStake} · {venueName(venue)}
+            </span>
+          </div>
+          <ul className="mt-3 grid grid-cols-2 gap-2">
+            {menu.map((m) => (
+              <li key={m.id} className="flex items-center gap-3 h-[52px] px-4 rounded-[18px] bg-[#1c1c1e]/70 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.color ?? "#fff" }} />
+                <span className="min-w-0">
+                  <span className="block text-[14px] text-white truncate">{m.label}</span>
+                  <span className="block text-[12px] text-white/40 truncate">{m.sub}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        </div>
+
+        <div className="flex-1 flex flex-col lg:self-stretch">
+
         {/* The table: faces stacked until you open it, then a list you can edit */}
-        <div className="px-5 pt-10 flex items-center justify-between gap-4">
+        <div className="px-5 pt-10 lg:pt-8 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={() => setUnfolded((u) => !u)}
@@ -411,6 +479,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {t.setup.lockedCta(venue.buyIn, wealth)}
             </button>
           )}
+        </div>
+        </div>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { PlayingCard } from "./PlayingCard";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { useLanguage } from "../services/i18n";
 import { avatarFor } from "../services/avatars";
+import { SeatStatsSheet } from "./SeatStatsSheet";
 
 interface AIStratumProps {
     players: Player[];
@@ -16,6 +17,7 @@ interface AIStratumProps {
 
 // How long an action word stays over a face after the action lands.
 const ACTION_FLASH_MS = 1600;
+const HOLD_MS = 450; // press this long on a seat for its stats
 
 type ActionWord = "check" | "call" | "raise" | "fold" | "allIn";
 
@@ -102,6 +104,43 @@ export const AIStratum: React.FC<AIStratumProps> = ({
         });
     };
 
+    // Press and hold a seat for its stats; the click that ends a hold must not also peek
+    const [statsFor, setStatsFor] = useState<string | null>(null);
+    const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const holdOrigin = useRef<{ x: number; y: number } | null>(null);
+    const justHeld = useRef(false);
+    const cancelHold = () => {
+        clearTimeout(holdTimer.current);
+        holdOrigin.current = null;
+    };
+    const openStats = (id: string) => {
+        cancelHold();
+        justHeld.current = true;
+        navigator.vibrate?.(10);
+        setStatsFor(id);
+    };
+    const holdHandlers = (id: string) => ({
+        onPointerDown: (e: React.PointerEvent) => {
+            if (e.pointerType === "mouse" && e.button !== 0) return;
+            holdOrigin.current = { x: e.clientX, y: e.clientY };
+            clearTimeout(holdTimer.current);
+            holdTimer.current = setTimeout(() => openStats(id), HOLD_MS);
+        },
+        onPointerMove: (e: React.PointerEvent) => {
+            const o = holdOrigin.current;
+            if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > 8) cancelHold();
+        },
+        onPointerUp: cancelHold,
+        onPointerLeave: cancelHold,
+        onPointerCancel: cancelHold,
+        onContextMenu: (e: React.MouseEvent) => {
+            e.preventDefault();
+            openStats(id);
+        },
+    });
+    useEffect(() => () => clearTimeout(holdTimer.current), []);
+    const statsPlayer = players.find((p) => p.id === statsFor);
+
     const wordFromIntent = (action: string): ActionWord => {
         const act = action.toLowerCase();
         return act === "check" || act === "call" || act === "raise" || act === "fold" ? act : "allIn";
@@ -147,9 +186,16 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                             ref={isFocal ? focalSeatRef : null}
                             role={canPeek ? "button" : undefined}
                             tabIndex={canPeek ? 0 : undefined}
-                            onClick={canPeek ? () => togglePeek(p.id) : undefined}
+                            {...holdHandlers(p.id)}
+                            onClick={() => {
+                                if (justHeld.current) {
+                                    justHeld.current = false;
+                                    return;
+                                }
+                                if (canPeek) togglePeek(p.id);
+                            }}
                             title={[p.name, personaLabel, isTilted ? (lang === "zh" ? "情绪上头" : "on tilt") : "", canPeek ? (isPeeked ? t.game.hideCards : t.game.peekCards) : ""].filter(Boolean).join(" · ")}
-                            className={`flex flex-col items-center select-none ${canPeek ? "cursor-pointer" : ""}`}
+                            className={`flex flex-col items-center select-none [-webkit-touch-callout:none] ${canPeek ? "cursor-pointer" : ""}`}
                         >
                             {/* A caret over whoever is to act */}
                             <div className="h-6 flex items-center justify-center">
@@ -220,6 +266,7 @@ export const AIStratum: React.FC<AIStratumProps> = ({
                     );
                 })}
             </div>
+            {statsPlayer && <SeatStatsSheet player={statsPlayer} onClose={() => setStatsFor(null)} />}
         </section>
     );
 };

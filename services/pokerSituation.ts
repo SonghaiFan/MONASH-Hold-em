@@ -1,5 +1,6 @@
-import { Card, GamePhase, Player } from "../types";
+import { Card, GamePhase, Player, PlayerStats } from "../types";
 import { estimateEquity } from "./pokerEvaluator";
+import { MIN_HANDS_FOR_READS, summarise } from "./playerStats";
 
 // Everything a model (of either kind) needs to judge one decision, computed
 // once in code so the model never has to do arithmetic or guess what is legal.
@@ -18,7 +19,7 @@ export const HAND_STRENGTH_LEVELS = [
 ];
 
 export const ACTION_INSTRUCTIONS =
-  "You are a game-theory-optimal No-Limit Hold'em player. `equityPercent` is your simulated chance to win at showdown against `opponentsInHand` random hands; adjust it downward when opponents have shown strength via `handHistory`. Compare it with `potOddsPercent`, weigh `you.position` and `tableInActionOrder`, and choose the single highest-EV action. A preflop raiser betting again represents strength; passive lines cap ranges.";
+  "You are a game-theory-optimal No-Limit Hold'em player. `equityPercent` is your simulated chance to win at showdown against `opponentsInHand` random hands; adjust it downward when opponents have shown strength via `handHistory`. Compare it with `potOddsPercent`, weigh `you.position` and `tableInActionOrder`, and choose the single highest-EV action. A preflop raiser betting again represents strength; passive lines cap ranges. Where an opponent has `reads` (VPIP, PFR and postflop aggression so far), use them: a loose player's bets mean less, a tight player's mean more.";
 
 export const HAND_STRENGTH_INSTRUCTIONS =
   "Rate the absolute strength of `you.holeCards` given `board` and `street`, ignoring the betting.";
@@ -42,6 +43,20 @@ export interface Situation {
 
 const formatCards = (cards: Card[]) =>
   cards.map((c) => `${c.rank}${c.suit}`).join(" ");
+
+// What an opponent has shown so far at this table: their HUD numbers, or a
+// note that there isn't enough yet to go on.
+const readsOf = (stats: PlayerStats) => {
+  const s = summarise(stats);
+  if (s.hands < MIN_HANDS_FOR_READS) return `only ${s.hands} hands seen; no reliable read yet`; // under MIN_HANDS_FOR_READS
+  const pct = (v: number) => Math.round(v * 100);
+  return {
+    handsSeen: s.hands,
+    vpipPercent: pct(s.vpip),
+    pfrPercent: pct(s.pfr),
+    ...(s.afq !== null ? { postflopAggressionPercent: pct(s.afq) } : {}),
+  };
+};
 
 // Helper: Calculate standard Pot Odds
 const calculatePotOdds = (toCall: number, currentPot: number): number => {
@@ -165,6 +180,7 @@ export const buildSituation = (
       status: describeStatus(p),
       stack: p.chips,
       isYou: p.id === activePlayer.id,
+      ...(p.id !== activePlayer.id && p.stats ? { reads: readsOf(p.stats) } : {}),
     }));
 
   const opponentsInHand = Math.max(

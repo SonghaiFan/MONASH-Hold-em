@@ -10,14 +10,9 @@ export interface Translations {
   sysVersion: string;
 
   login: {
-    statusAwaiting: string;
-    statusAnalyzing: string;
-    statusIdentified: string;
-    statusAuthenticating: string;
-    callsignPlaceholder: string;
-    btnInit: string;
-    btnEstablish: string;
-    signatureTitle: string;
+    title: string;
+    namePlaceholder: string;
+    play: string;
   };
 
   setup: {
@@ -73,6 +68,33 @@ export interface Translations {
     defaultTag: string;
     editedTag: string;
     restoreDefault: string;
+    targets: (vpip: number, pfr: number) => string;
+  };
+
+  hud: {
+    hands: (n: number) => string;
+    vpipHint: string;
+    pfrHint: string;
+    afqHint: string;
+    target: (pct: number) => string;
+    tooFew: string;
+    natural: string;
+    chart: string;
+  };
+
+  desk: {
+    blinds: string;
+    hands: string;
+    session: string;
+    seats: string;
+    you: string;
+    yourTurn: string;
+    openStats: string;
+    handLog: string;
+    logEmpty: string;
+    phases: Record<string, string>;
+    venueMenu: string;
+    venueStake: string;
   };
 
   venues: Record<
@@ -158,20 +180,15 @@ export interface Translations {
 export const translations: Record<Language, Translations> = {
   en: {
     langName: "English",
-    gameTitle: "Frank's Hold'em",
+    gameTitle: "Frankie Hold'em",
     gameSubtitle: "Frank's Hold'em",
     madeBy: "Made by 范不着Frank",
     sysVersion: "Sys v1.0.0",
 
     login: {
-      statusAwaiting: "• AWAITING INPUT",
-      statusAnalyzing: "• ANALYZING...",
-      statusIdentified: "• IDENTITY DETECTED",
-      statusAuthenticating: "• AUTHENTICATING...",
-      callsignPlaceholder: "ENTER CALLSIGN",
-      btnInit: "INITIALIZING...",
-      btnEstablish: "ESTABLISH LINK",
-      signatureTitle: "Frankie",
+      title: "Frankie Hold'em",
+      namePlaceholder: "Your name",
+      play: "Play",
     },
 
     setup: {
@@ -229,6 +246,33 @@ export const translations: Record<Language, Translations> = {
       defaultTag: "Default",
       editedTag: "Edited",
       restoreDefault: "Restore default",
+      targets: (vpip, pfr) => `Plays about ${vpip}% of hands, raises ${pfr}% before the flop`,
+    },
+
+    hud: {
+      hands: (n) => (n === 1 ? "1 hand" : `${n} hands`),
+      vpipHint: "Puts money in before the flop",
+      pfrHint: "Raises before the flop",
+      afqHint: "Bets or raises after the flop",
+      target: (pct) => `target ${pct}%`,
+      tooFew: "Too few hands to tell yet",
+      natural: "No targets: the model decides every street",
+      chart: "Preflop follows the hand chart; the model takes over from the flop",
+    },
+
+    desk: {
+      blinds: "Blinds",
+      hands: "Hands",
+      session: "vs buy-in",
+      seats: "Seats",
+      you: "You",
+      yourTurn: "Your turn",
+      openStats: "Open stats",
+      handLog: "This hand",
+      logEmpty: "Nothing yet — the first action shows here.",
+      phases: { PRE_FLOP: "Preflop", FLOP: "Flop", TURN: "Turn", RIVER: "River", SHOWDOWN: "Showdown" },
+      venueMenu: "Models served here",
+      venueStake: "Stakes",
     },
 
     venues: {
@@ -333,20 +377,15 @@ export const translations: Record<Language, Translations> = {
 
   zh: {
     langName: "中文",
-    gameTitle: "Frank's Hold'em",
+    gameTitle: "Frankie Hold'em",
     gameSubtitle: "弗兰克德州扑克",
     madeBy: "由 范不着Frank 制作",
     sysVersion: "系统版本 v1.0.0",
 
     login: {
-      statusAwaiting: "• 等待输入代号",
-      statusAnalyzing: "• 正在分析代号...",
-      statusIdentified: "• 已识别身份",
-      statusAuthenticating: "• 正在验证连接...",
-      callsignPlaceholder: "输入代号",
-      btnInit: "初始化中...",
-      btnEstablish: "建立神经连接",
-      signatureTitle: "弗兰克",
+      title: "Frankie Hold'em",
+      namePlaceholder: "你的名字",
+      play: "开始",
     },
 
     setup: {
@@ -404,6 +443,33 @@ export const translations: Record<Language, Translations> = {
       defaultTag: "默认",
       editedTag: "已修改",
       restoreDefault: "恢复默认",
+      targets: (vpip, pfr) => `约 ${vpip}% 的牌入池，翻牌前加注约 ${pfr}%`,
+    },
+
+    hud: {
+      hands: (n) => `${n} 手`,
+      vpipHint: "翻牌前主动投入筹码",
+      pfrHint: "翻牌前加注",
+      afqHint: "翻牌后下注或加注",
+      target: (pct) => `目标 ${pct}%`,
+      tooFew: "手数太少，还看不出来",
+      natural: "没有目标值：每条街都由模型决定",
+      chart: "翻牌前按起手牌表出牌，翻牌后交给模型",
+    },
+
+    desk: {
+      blinds: "盲注",
+      hands: "手数",
+      session: "较买入",
+      seats: "座位",
+      you: "你",
+      yourTurn: "轮到你",
+      openStats: "查看数据",
+      handLog: "本局",
+      logEmpty: "还没有动作，第一个行动会出现在这里。",
+      phases: { PRE_FLOP: "翻牌前", FLOP: "翻牌", TURN: "转牌", RIVER: "河牌", SHOWDOWN: "摊牌" },
+      venueMenu: "本场提供的模型",
+      venueStake: "级别",
     },
 
     venues: {
@@ -579,7 +645,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = lang;
-      document.title = lang === "zh" ? "Frank's Hold'em · 弗兰克德州扑克" : "Frank's Hold'em";
+      document.title = t.gameTitle;
     }
   }, [lang]);
 

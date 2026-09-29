@@ -35,6 +35,21 @@ export interface Persona {
   sizing: "small" | "standard" | "big"; // Preferred bet sizing
   temperature: number; // Sampling temperature: low = consistent, high = erratic
   tiltFactor: number; // Aggression multiplier applied after losing a big pot
+  // Preflop targets, as shares of hands dealt. A style with these plays its
+  // preflop from the hand chart (services/preflop.ts) instead of asking a model.
+  vpip?: number; // how often it puts money in by choice
+  pfr?: number; // how often it raises
+}
+
+// Running HUD counts for one player (services/playerStats.ts)
+export interface PlayerStats {
+  hands: number;
+  vpipHands: number;
+  pfrHands: number;
+  aggressive: number; // postflop bets and raises
+  passive: number; // postflop calls and folds
+  vpipThisHand: boolean;
+  pfrThisHand: boolean;
 }
 
 export interface Player {
@@ -54,6 +69,7 @@ export interface Player {
   prompt?: string; // AI only: replaces the default play instructions for this player (empty = default)
   tilt?: number; // AI only: current aggression multiplier from recent losses (1 = calm)
   handStartChips?: number; // AI only: stack at the start of the current hand, for tilt tracking
+  stats?: PlayerStats; // how they have actually played at this table
 }
 
 export enum GamePhase {
@@ -124,4 +140,5 @@ export interface GameState {
   winningHand: WinningHand | null;
   isRunningOut: boolean; // True if dealing cards automatically (All-In)
   handHistory: string[]; // Log of all actions in the current hand for AI Context
+  handNotes?: Record<number, string>; // a model's reasoning, keyed by the handHistory line it explains
 }

@@ -2,10 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AIStratum } from './AIStratum';
 import { TableStratum } from './TableStratum';
 import { PlayerStratum } from './PlayerStratum';
+import { TableRoster } from './TableRoster';
+import { HandLog } from './HandLog';
 import { generateDeck, initializeGame } from '../constants';
 import { GamePhase, GameState, PlayerAction, GameConfig, Player } from '../types';
 import { getAIDecision } from '../services/pokerAi';
 import { determineWinner } from '../services/pokerEvaluator';
+import { recordAction, startHandStats } from '../services/playerStats';
 import { useLanguage } from '../services/i18n';
 
 interface PokerGameProps {
@@ -156,6 +159,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                     isDealer: isDealer,
                     currentBet: 0,
                     reasoningHistory: [],
+                    stats: startHandStats(p.stats),
                     ...nextTilt(p)
                 };
             });
@@ -212,7 +216,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                 minRaise: config.blindBig,
                 winningHand: null,
                 isRunningOut: false,
-                handHistory: history
+                handHistory: history,
+                handNotes: {}
             };
         });
     }, [config]);
@@ -366,6 +371,7 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
             }
 
             let newPotDisplay = prev.pot;
+            const betBefore = player.currentBet;
             const currentHighBet = Math.max(...players.map(p => p.currentBet));
             const toCall = currentHighBet - player.currentBet;
 
@@ -451,7 +457,17 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                 }
             }
 
+            // HUD: count the action as it actually landed (a call of nothing is a check)
+            const paid = player.currentBet > betBefore;
+            player.stats = recordAction(
+                player.stats,
+                prev.phase,
+                player.status === 'FOLDED' ? 'fold' : action === 'raise' ? 'raise' : paid ? 'call' : 'check',
+                paid
+            );
+
             const updatedHistory = [...prev.handHistory, logEntry];
+            const handNotes = reasoning ? { ...prev.handNotes, [updatedHistory.length - 1]: reasoning } : prev.handNotes;
 
             // --- 2. CHECK FOR WINNER (Folded out) ---
             const activePlayers = players.filter(p => p.status !== 'FOLDED' && p.status !== 'ELIMINATED');
@@ -481,7 +497,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                         description: 'Opponents Folded',
                         focalPlayerId: focalId || undefined
                     },
-                    handHistory: updatedHistory
+                    handHistory: updatedHistory,
+                    handNotes
                 };
             }            // --- 3. CHECK ROUND COMPLETION & AUTO-RUNOUT ---
             const nextHighBet = Math.max(...players.map(p => p.currentBet));
@@ -561,7 +578,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                     phase: nextPhase,
                     activePlayerId: nextActiveId,
                     isRunningOut: startRunout,
-                    handHistory: updatedHistory
+                    handHistory: updatedHistory,
+                    handNotes
                 };
             }
 
@@ -581,7 +599,8 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                 players,
                 pot: newPotDisplay,
                 activePlayerId: players[nextIndex].id,
-                handHistory: updatedHistory
+                handHistory: updatedHistory,
+                handNotes
             };
         });
     }, []);
@@ -695,8 +714,20 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                 </div>
             )}
 
-            {/* One phone-wide column: seats, board, you */}
-            <div className="h-full w-full max-w-[480px] mx-auto flex flex-col">
+            {/* One phone-wide column: seats, board, you. On a desktop, the seats in
+                full on its left and the hand as it happens on its right. */}
+            <div className="h-full w-full flex justify-center lg:gap-6 lg:px-6">
+            {hasStarted && (
+                <div className="hidden lg:block w-[260px] xl:w-[300px] shrink-0 pt-14 pb-2 animate-in fade-in duration-500">
+                    <TableRoster
+                        players={gameState.players}
+                        activePlayerId={gameState.activePlayerId}
+                        bigBlind={config.blindBig}
+                        buyIn={config.startingStackHuman}
+                    />
+                </div>
+            )}
+            <div className="h-full w-full max-w-[480px] min-w-0 flex flex-col">
                 <div className="shrink-0 h-14 flex items-center px-3">
                     <button
                         type="button"
@@ -749,6 +780,18 @@ export const PokerGame: React.FC<PokerGameProps> = ({ config, wealth, onWealthCh
                         phase={gameState.phase}
                     />
                 </div>
+            </div>
+            {hasStarted && (
+                <div className="hidden lg:block w-[260px] xl:w-[300px] shrink-0 pt-14 pb-2 animate-in fade-in duration-500">
+                    <HandLog
+                        history={gameState.handHistory}
+                        notes={gameState.handNotes ?? {}}
+                        players={gameState.players}
+                        phase={gameState.phase}
+                        activePlayerId={gameState.activePlayerId}
+                    />
+                </div>
+            )}
             </div>
         </div>
     );

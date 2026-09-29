@@ -38,6 +38,8 @@ const TOP = 10; // the face's inset from the top of a row, and of the stack
 const STEP = 36; // stacked faces overlap by a quarter
 const SPEED = 450; // px per second along the track: slow enough to see the snake
 const COIN = 40; // over its first 40px down the list a face sheds its coin
+const GLIDE_MS = 300; // a seat coming or going: the rest of the list slides to make room, or close it
+const GLIDE = `${GLIDE_MS}ms cubic-bezier(0.19, 1, 0.22, 1)`;
 
 const QuoteMark = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,14 +67,22 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
   const length = (n - 1) * ROW_H; // the head's journey, the longest
   const [travel, setTravel] = useState(unfolded ? length : 0);
   const travelRef = useRef(travel);
+  // Folding and unfolding run the snake frame by frame; a seat added or removed
+  // only moves the others by a row, which CSS glides instead
+  const [snaking, setSnaking] = useState(false);
+  const wasUnfolded = useRef(unfolded);
 
   useEffect(() => {
     const target = unfolded ? length : 0;
-    if (reducedMotion()) {
+    const toggled = wasUnfolded.current !== unfolded;
+    wasUnfolded.current = unfolded;
+    if (!toggled || reducedMotion()) {
       travelRef.current = target;
       setTravel(target);
       return;
     }
+    setSnaking(true);
+    let done: ReturnType<typeof setTimeout> | undefined;
     const distance = Math.abs(target - travelRef.current);
     const controls = animate(travelRef.current, target, {
       duration: Math.max(0.25, distance / SPEED),
@@ -81,8 +91,16 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
         travelRef.current = v;
         setTravel(v);
       },
+      // a tick later, so the last frame lands before the glide is switched back on
+      onComplete: () => {
+        done = setTimeout(() => setSnaking(false));
+      },
     });
-    return () => controls.stop();
+    return () => {
+      controls.stop();
+      clearTimeout(done);
+      setSnaking(false);
+    };
   }, [unfolded, length]);
 
   const at = (j: number) => Math.min(start(j) + travel, stop(j));
@@ -91,6 +109,25 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
   const point = (s: number) => (s < 0 ? { x: GUTTER - s, y: TOP } : { x: GUTTER, y: TOP + s });
   const deepest = rows.reduce((m, _, j) => Math.max(m, point(at(j)).y), TOP);
   const height = deepest + FACE + TOP;
+
+  // A face whose seat was just removed stays where it was for a moment, fading
+  // out, while the rest close the gap
+  const lastSeen = useRef(new Map<string, { x: number; y: number }>());
+  const [leaving, setLeaving] = useState<{ id: string; x: number; y: number }[]>([]);
+  const ids = rows.map((r) => r.id).join("|");
+  useEffect(() => {
+    const now = new Set(rows.map((r) => r.id));
+    const gone = [...lastSeen.current].filter(([id]) => !now.has(id)).map(([id, p]) => ({ id, ...p }));
+    lastSeen.current = new Map(rows.map((r, j) => [r.id, point(at(j))]));
+    if (gone.length === 0 || reducedMotion()) return;
+    setLeaving((l) => [...l.filter((g) => !now.has(g.id)), ...gone]);
+    const timer = setTimeout(() => setLeaving((l) => l.filter((g) => !gone.some((x) => x.id === g.id))), GLIDE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
+  useEffect(() => {
+    lastSeen.current = new Map(rows.map((r, j) => [r.id, point(at(j))]));
+  });
 
   return (
     // isolate: the faces' z-indexes order them within the snake, and must not lift them over the page (the pinned Sit down button)
@@ -108,7 +145,7 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
             aria-haspopup="dialog"
             className={`
               absolute inset-x-0 flex items-center gap-4 px-5 text-left select-none [-webkit-touch-callout:none]
-              transition-[opacity,background-color,transform] duration-300 cursor-pointer
+              transition-[opacity,background-color,transform,top] duration-300 cursor-pointer
               ${here ? "opacity-100" : "opacity-0 pointer-events-none"}
               ${pressing === row.id ? "bg-white/[0.06] scale-[0.98]" : "hover:bg-white/[0.03]"}
             `}
@@ -143,6 +180,8 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
               top: 0,
               transform: `translate(${x}px, ${y}px)`,
               zIndex: j + 1, // the head, leftmost, lies on top of the stack
+              transition: snaking ? "none" : `transform ${GLIDE}, padding ${GLIDE}, background-color ${GLIDE}, box-shadow ${GLIDE}`,
+              animation: `fade-in ${GLIDE_MS}ms ease-out`, // a new seat fades in where it lands
               padding: 6 * coin,
               backgroundColor: `rgba(44, 44, 46, ${coin})`,
               boxShadow: `0 0 0 3px rgba(0, 0, 0, ${coin})`,
@@ -152,6 +191,16 @@ export const SeatSnake: React.FC<SeatSnakeProps> = ({
           </span>
         );
       })}
+
+      {leaving.map((g) => (
+        <span
+          key={`leaving-${g.id}`}
+          className="absolute w-12 h-12 pointer-events-none"
+          style={{ left: 0, top: 0, transform: `translate(${g.x}px, ${g.y}px)`, zIndex: 0, animation: `fade-out ${GLIDE_MS}ms ease-out forwards` }}
+        >
+          <img src={avatarFor(g.id)} alt="" draggable={false} className="w-full h-full object-contain" />
+        </span>
+      ))}
 
       {/* Folded, the whole stack is one button */}
       {!unfolded && (

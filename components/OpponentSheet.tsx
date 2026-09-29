@@ -124,6 +124,11 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
               })}
             </div>
             <p className="mt-3 text-[14px] leading-snug text-white/55">{strategy.desc}</p>
+            {PERSONAS[seat.strategy]?.vpip !== undefined && (
+              <p className="mt-1 text-[14px] leading-snug text-[#f5e35b]/80 tabular-nums">
+                {t.seat.targets(Math.round(PERSONAS[seat.strategy].vpip! * 100), Math.round(PERSONAS[seat.strategy].pfr! * 100))}
+              </p>
+            )}
           </section>
 
           {/* Prompt: the default instructions, in full, to rewrite for this one player */}
