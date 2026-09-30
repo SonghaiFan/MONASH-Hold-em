@@ -1,3 +1,4 @@
+import { applyVariablePlugins } from "./variablePlugins";
 // What one opponent actually reads, street by street, for the prompt editor.
 // A fixed sample hand is played through the real situation and request
 // builders, so the preview is the request the game would send — not a mock.
@@ -121,7 +122,7 @@ export const hasSampleSituation = (name: string, street: PreviewStreet) => built
 export const sampleSituation = (name: string, street: PreviewStreet): Situation => {
   const key = keyOf(name, street);
   const cached = built.get(key);
-  if (cached) return cached;
+  if (cached) return { ...cached, state: applyVariablePlugins(cached.state) };
   const spot = spots(name)[street];
   const seat = player({ id: "seat", name, position: "BTN", isDealer: true, hand: HOLE, ...spot.seat });
   const sb = player({
@@ -205,14 +206,28 @@ export interface PromptParts {
   legal: string[];
 }
 
+// The exact JSON body produced by the same builder used for the live model
+// call. Authentication headers are intentionally outside this body.
+export const rawRequestBody = (situation: Situation, modelId: string, prompt: string) =>
+  JSON.stringify(
+    modelKindFor(modelId) === "decisions"
+      ? buildDecisionsRequest(situation, modelId, prompt)
+      : buildChatRequest(situation, modelId, prompt),
+    null,
+    2
+  );
+
 export const promptParts = (situation: Situation, modelId: string, prompt: string): PromptParts => {
-  const yours = playInstructions(prompt);
-  const table = JSON.stringify(situation.state, null, 2);
-  const tableSent = JSON.stringify({ state: situation.state });
+  let table: string;
+  let tableSent: string;
+  let yours: string;
   let rules: string;
   let rulesSent: string;
 
   if (modelKindFor(modelId) === "decisions") {
+    table = JSON.stringify(situation.state, null, 2);
+    tableSent = JSON.stringify({ state: situation.state });
+    yours = playInstructions(prompt);
     const req = buildDecisionsRequest(situation, modelId, prompt);
     const questions = req.questions as Record<string, Record<string, unknown>>;
     const shown = { ...questions, action: { ...questions.action, instructions: "↑ your prompt" } };
@@ -221,8 +236,11 @@ export const promptParts = (situation: Situation, modelId: string, prompt: strin
   } else {
     const req = buildChatRequest(situation, modelId, prompt);
     const system = req.messages[0].content;
-    rules = system.slice(yours.length).trim();
-    rulesSent = rules + JSON.stringify(req.response_format);
+    tableSent = req.messages[1].content;
+    table = JSON.stringify(JSON.parse(tableSent), null, 2);
+    yours = system;
+    rules = JSON.stringify(req.response_format, null, 2);
+    rulesSent = JSON.stringify(req.response_format);
   }
 
   const tokens = {

@@ -60,6 +60,7 @@ export interface Translations {
     model: string;
     strategy: string;
     prompt: string;
+    decisionsInstructions: string;
     promptPlaceholder: string;
     promptNote: string;
     done: string;
@@ -86,8 +87,17 @@ export interface Translations {
     childField: string;
     valueHere: string;
     showValues: string;
+    editorHint: string;
+    editorPlacementChat: string;
+    editorPlacementDecisions: string;
+    addInformation: string;
+    closeInformation: string;
+    sampleValue: string;
+    searchInformation: string;
+    noInformation: string;
     typeBacktick: string;
     previewTitle: string;
+    previewShort: string;
     previewNote: string;
     previewToggle: string;
     legalHere: string;
@@ -286,11 +296,12 @@ export const translations: Record<Language, Translations> = {
     seat: {
       model: "Model",
       strategy: "Strategy",
-      prompt: "Prompt",
-      promptPlaceholder: "How should they play? e.g. You're a retired pro who can't stand limpers.",
-      promptNote: "What this AI is told before every decision. Change it and only this AI thinks differently.",
+      prompt: "System prompt template",
+      decisionsInstructions: "Action instructions",
+      promptPlaceholder: "Write the complete system prompt template.",
+      promptNote: "The complete editable system prompt for Chat models.",
       variables: "What the model can see",
-      variablesNote: "Every decision, the model is sent the whole spot as a JSON object called `state`. To point it at a field, write the field's name in backticks, like `equityPercent`. Tap one to add it.",
+      variablesNote: "Every decision, the model is sent the whole spot as a JSON object called `state`. To point these instructions at a field, write its name in backticks, like `equityPercent`. Tap one to add it.",
       fieldGroups: { you: "Your hand", table: "Table", maths: "Maths", opponents: "Opponents", history: "History" },
       sometimes: "sometimes",
       insertVariable: "Add to the prompt",
@@ -300,24 +311,33 @@ export const translations: Record<Language, Translations> = {
       childField: "A key inside each entry of a list",
       valueHere: "In this spot",
       showValues: "Show values",
+      editorHint: "Write how this opponent should play. Tap a highlighted phrase to explore the information it uses.",
+      editorPlacementChat: "This entire template becomes the stable system message. Live state and action criteria arrive as structured user input. Raw shows the complete request.",
+      editorPlacementDecisions: "For JEV, these instructions become questions.action.instructions. Raw shows the complete request.",
+      addInformation: "Add information",
+      closeInformation: "Close information",
+      sampleValue: "Example from a sample hand",
+      searchInformation: "Find information…",
+      noInformation: "No matching information.",
       typeBacktick: "Type ` to add a field",
+      previewShort: "Try a hand",
       previewTitle: "What the model reads",
       previewNote: "A sample hand from the button, run through the same code the table uses. Pick a street to see that decision.",
       previewToggle: "Preview on a sample hand",
       legalHere: "Legal here",
-      tokenParts: { yours: "Prompt", rules: "Game rules", table: "Table" },
+      tokenParts: { yours: "Instructions", rules: "Game rules", table: "Table" },
       tokens: (n) => `~${n} tokens`,
       costPer100: (usd) => `${usd} / 100 decisions`,
       renderedTitle: "Your prompt, in this spot",
       renderedNote: "Fields are filled in here for you to check. The model gets the names as written, and looks them up in state below.",
-      gameAdds: "Added by the game: answer format and legal actions",
-      gameAddsDecisions: "Added by the game: the typed questions",
-      stateTitle: "Table data sent to the model",
+      gameAdds: "Game rules",
+      gameAddsDecisions: "Game rules",
+      stateTitle: "Current hand information",
       chartPreflop: "This style plays preflop from the hand chart, so the model is only asked from the flop on.",
       chartShort: "chart",
       settings: "Player",
       done: "Done",
-      customPrompt: "Prompt edited",
+      customPrompt: "Play instructions edited",
       offMenu: "Not served here",
       defaultTag: "Default",
       editedTag: "Edited",
@@ -533,11 +553,12 @@ export const translations: Record<Language, Translations> = {
     seat: {
       model: "模型",
       strategy: "策略",
-      prompt: "提示词",
-      promptPlaceholder: "他该怎么打？例如：你是一位退役职业牌手，最看不惯溜进底池的人。",
-      promptNote: "每次做决定前，模型都会读到这段话。改动只影响这一位 AI。",
+      prompt: "System prompt 模板",
+      decisionsInstructions: "行动指令",
+      promptPlaceholder: "编写完整的 system prompt 模板。",
+      promptNote: "Chat 模型使用的完整可编辑 system prompt。",
       variables: "模型能看到的数据",
-      variablesNote: "每次决策，模型都会收到一份叫 `state` 的 JSON，里面是这一手的全部情况。想让它关注某个字段，就在提示词里用反引号写出字段名，比如 `equityPercent`。点一下即可插入。",
+      variablesNote: "每次决策，模型都会收到一份叫 `state` 的 JSON，里面是这一手的全部情况。想让打法指令关注某个字段，就用反引号写出字段名，比如 `equityPercent`。点一下即可插入。",
       fieldGroups: { you: "你的牌", table: "牌桌", maths: "计算", opponents: "对手", history: "历史" },
       sometimes: "视情况",
       insertVariable: "插入到提示词",
@@ -547,24 +568,33 @@ export const translations: Record<Language, Translations> = {
       childField: "列表中每一项里的字段",
       valueHere: "此刻的值",
       showValues: "显示取值",
+      editorHint: "写下你希望对手如何打牌。点击高亮片段，了解它使用的信息。",
+      editorPlacementChat: "整个模板会成为稳定的 system message。实时 state 和行动标准通过结构化 user input 传入。Raw 显示完整请求。",
+      editorPlacementDecisions: "对 JEV，这段指令会写入 questions.action.instructions。Raw 显示完整请求。",
+      addInformation: "添加信息",
+      closeInformation: "收起信息",
+      sampleValue: "示例牌局中的取值",
+      searchInformation: "搜索信息…",
+      noInformation: "没有找到匹配的信息。",
       typeBacktick: "输入 ` 插入字段",
+      previewShort: "试一手牌",
       previewTitle: "模型读到的内容",
       previewNote: "用牌桌同一套代码跑一手按钮位的示例牌。切换轮次，查看每次决策时的内容。",
       previewToggle: "在示例牌局中预览",
       legalHere: "可选动作",
-      tokenParts: { yours: "提示词", rules: "游戏规则", table: "牌桌" },
+      tokenParts: { yours: "打法指令", rules: "游戏规则", table: "牌桌" },
       tokens: (n) => `约 ${n} tokens`,
       costPer100: (usd) => `每 100 次决策 ${usd}`,
       renderedTitle: "你的提示词，在这一刻",
       renderedNote: "这里把字段替换成取值，方便你检查。模型收到的仍是字段名，并在下方的 state 中查找。",
-      gameAdds: "游戏追加的内容：回答格式与可选动作",
-      gameAddsDecisions: "游戏追加的内容：结构化问题",
-      stateTitle: "发送给模型的牌桌数据",
+      gameAdds: "游戏规则",
+      gameAddsDecisions: "游戏规则",
+      stateTitle: "当前牌局信息",
       chartPreflop: "这种风格翻牌前按起手牌表行动，只有翻牌后才会询问模型。",
       chartShort: "牌表",
       settings: "玩家",
       done: "完成",
-      customPrompt: "提示词已修改",
+      customPrompt: "打法指令已修改",
       offMenu: "本场不提供",
       defaultTag: "默认",
       editedTag: "已修改",

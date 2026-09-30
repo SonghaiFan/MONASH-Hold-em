@@ -4,10 +4,11 @@ import { AI_MODELS, modelCostPerM } from "../constants";
 import { AIModelOption, GamePhase, PlayerStats } from "../types";
 import { useLanguage } from "../services/i18n";
 import { Avatar } from "./Avatar";
-import { NATURAL, SeatSettings } from "../services/seats";
+import { NATURAL, SeatSettings, promptForModel, withPromptForModel } from "../services/seats";
 import { ACTION_INSTRUCTIONS } from "../services/pokerSituation";
-import { isKnownField, referencesIn } from "../services/promptFields";
-import { PREVIEW_STREETS, PreviewStreet, hasSampleSituation, sampleSituation, valueAt } from "../services/promptPreview";
+import { DEFAULT_CHAT_PROMPT_TEMPLATE, modelKindFor } from "../services/aiProviders";
+import { isKnownField, referencesIn, PROMPT_FIELDS, fieldLabel } from "../services/promptFields";
+import { PREVIEW_STREETS, PreviewStreet, sampleSituation, valueAt, formatValue } from "../services/promptPreview";
 import { PromptVariables } from "./PromptVariables";
 import { PromptEditor, PromptEditorHandle, VarState } from "./PromptEditor";
 import { PromptPreview } from "./PromptPreview";
@@ -29,7 +30,7 @@ interface OpponentSheetProps {
 const START_POINT: StylePoint = { x: 0.3, y: 0.7 }; // where the dot lands when you first give a seat a style
 // Every model, cheapest first; the ones this venue doesn't serve are shown but can't be picked
 const ALL_MODELS = [...AI_MODELS].sort((a, b) => modelCostPerM(a) - modelCostPerM(b));
-const PROMPT_LIMIT = 2000;
+const PROMPT_LIMIT = 12000;
 
 const Chevron = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -37,24 +38,8 @@ const Chevron = () => (
   </svg>
 );
 
-// A desktop has room to show the prompt and what it turns into side by side
-const WIDE = "(min-width: 1024px)";
-const useWide = () => {
-  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(WIDE);
-    const on = () => setWide(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return wide;
-};
-
-// One opponent's settings: a sheet from the bottom on a phone, a three-pane
-// prompt workbench on a desktop (the player · the prompt · what the model reads). Every change applies as
-// it is made; Done only closes.
 export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model, onChange, onClose, record = {} }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   // --- Style: a point on the map, a named corner of it, or none at all ---
   const natural = seat.strategy === NATURAL;
@@ -82,21 +67,22 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
   const enough = played.hands >= MIN_HANDS_FOR_READS;
   const actualPoint = !natural && enough ? pointOf(played.vpip, played.pfr) : null;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const currentModel = AI_MODELS.find((m) => m.id === model);
   // The box holds its own draft, so clearing it to start over doesn't snap the default back in.
   // What is saved: "" (the default) unless the text says something else.
-  const [promptText, setPromptText] = useState(seat.prompt.trim() ? seat.prompt : ACTION_INSTRUCTIONS);
-  const edited = seat.prompt.trim() !== "";
+  const defaultPrompt = modelKindFor(model) === "decisions" ? ACTION_INSTRUCTIONS : DEFAULT_CHAT_PROMPT_TEMPLATE;
+  const promptLabel = modelKindFor(model) === "decisions" ? t.seat.decisionsInstructions : t.seat.prompt;
+  const savedPrompt = promptForModel(seat, model);
+  const [promptText, setPromptText] = useState(savedPrompt.trim() ? savedPrompt : defaultPrompt);
+  const edited = savedPrompt.trim() !== "";
+  useEffect(() => {
+    const next = promptForModel(seat, model);
+    setPromptText(next.trim() ? next : modelKindFor(model) === "decisions" ? ACTION_INSTRUCTIONS : DEFAULT_CHAT_PROMPT_TEMPLATE);
+  }, [model]);
   const editPrompt = (text: string) => {
     setPromptText(text);
     const trimmed = text.trim();
-    onChange({ ...seat, prompt: trimmed === "" || trimmed === ACTION_INSTRUCTIONS ? "" : text });
+    onChange(withPromptForModel(seat, model, trimmed === "" || trimmed === defaultPrompt ? "" : text));
   };
 
   // A field from the list goes in where the caret is, as a pill — or at the
@@ -106,25 +92,51 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
   const insertField = (path: string) => editor.current?.insert(path);
 
   // The same sample hand for every street, played through the real builders
-  const wide = useWide();
   const [street, setStreet] = useState<PreviewStreet>(GamePhase.FLOP);
-  // The other streets are simulated after the panel has opened, one at a time
-  const [, warmed] = useState(0);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const next = () => {
-      const todo = PREVIEW_STREETS.find((s) => !hasSampleSituation(seat.id, s));
-      if (!todo) return;
-      sampleSituation(seat.id, todo);
-      warmed((n) => n + 1);
-      timer = setTimeout(next, 40);
-    };
-    timer = setTimeout(next, 400);
-    return () => clearTimeout(timer);
-  }, [seat.id]);
   const [picked, setPicked] = useState<string | null>(null);
-  const [showValues, setShowValues] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [panel, setPanel] = useState<"information" | "settings" | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const sheet = useRef<HTMLDivElement>(null);
+  const lastTrigger = useRef<HTMLElement | null>(null);
+  const closePanel = () => { setPanel(null); setPicked(null); lastTrigger.current?.focus(); };
+  const openPanel = (next: "information" | "settings") => {
+    lastTrigger.current = document.activeElement as HTMLElement;
+    setPicked(null);
+    setPanel(next);
+  };
+  const inspectField = (name: string | null) => {
+    // In hand preview mode the sample value already lives inside the pill.
+    // Opening the field tray here would repeat the same information.
+    if (showPreview) return;
+    lastTrigger.current = document.activeElement as HTMLElement;
+    setPicked(name);
+    setPanel(name ? "information" : null);
+    // Inspecting information should not leave the phone keyboard over the tray.
+    (document.activeElement as HTMLElement)?.blur();
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (panel) { setPanel(null); setPicked(null); lastTrigger.current?.focus(); }
+        else onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panel, onClose]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      if (!sheet.current) return;
+      sheet.current.style.height = `${Math.min(860, (viewport?.height ?? window.innerHeight) * 0.94)}px`;
+      sheet.current.style.bottom = `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`;
+    };
+    update();
+    viewport?.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
+    return () => { viewport?.removeEventListener("resize", update); viewport?.removeEventListener("scroll", update); };
+  }, []);
   const spot = sampleSituation(seat.id, street).state as Record<string, unknown>;
   const valueOf = (name: string) => valueAt(spot, name);
   const stateOf = (name: string): VarState =>
@@ -227,31 +239,19 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
   );
 
   const promptSection = (
-    <section>
+    <section className="max-w-[760px] mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-2 min-h-7">
         <h3 className="text-[14px] text-white/45 flex items-center gap-2">
-          {t.seat.prompt}
+          {promptLabel}
           <span className={`h-5 px-2 rounded-full text-[12px] leading-5 ${edited ? "bg-[#f5e35b] text-black" : "bg-white/[0.08] text-white/55"}`}>
             {edited ? t.seat.editedTag : t.seat.defaultTag}
           </span>
         </h3>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showValues}
-            onClick={() => setShowValues((v) => !v)}
-            className={`h-7 px-3 rounded-full text-[13px] transition-colors cursor-pointer ${
-              showValues ? "bg-[#f5e35b]/15 text-[#f5e35b]" : "bg-white/[0.08] text-white/70 hover:bg-white/[0.14]"
-            }`}
-          >
-            {t.seat.showValues}
-            {showValues && <span className="text-[#f5e35b]/60"> · {t.desk.phases[street]}</span>}
-          </button>
           {edited && (
             <button
               type="button"
-              onClick={() => editPrompt(ACTION_INSTRUCTIONS)}
+              onClick={() => editPrompt(defaultPrompt)}
               className="h-7 px-3 rounded-full bg-white/[0.08] text-[13px] text-white hover:bg-white/[0.14] transition-colors cursor-pointer"
             >
               {t.seat.restoreDefault}
@@ -259,161 +259,93 @@ export const OpponentSheet: React.FC<OpponentSheetProps> = ({ seat, menu, model,
           )}
         </div>
       </div>
-      {wide && <p className="-mt-1 mb-3 text-[13px] leading-snug text-white/40">{t.seat.promptNote}</p>}
-      <PromptEditor
-        ref={editor}
-        value={promptText}
-        onChange={editPrompt}
-        limit={PROMPT_LIMIT}
-        stateOf={stateOf}
-        valueOf={valueOf}
-        showValues={showValues}
-        selected={picked}
-        onSelect={setPicked}
-        edited={edited}
-        className={wide ? "min-h-[280px]" : "min-h-[220px]"}
-      />
-      <div className="mt-1.5 flex justify-between gap-3 text-[13px] text-white/35">
-        <span>{wide ? t.seat.typeBacktick : t.seat.promptNote}</span>
-        <span className="tabular-nums shrink-0">{promptText.length}/{PROMPT_LIMIT}</span>
-      </div>
-      {refs.unknown.length > 0 && (
-        <p className="mt-2 text-[13px] leading-snug text-[#ff8a8a]">
-          {t.seat.unknownVariables}{" "}
-          {refs.unknown.map((name) => (
-            <code key={name} className="font-mono mr-1.5">`{name}`</code>
-          ))}
-        </p>
-      )}
+      <p className="mb-3 text-[13px] leading-snug text-white/50">
+        {t.seat.editorHint} {modelKindFor(model) === "decisions" ? t.seat.editorPlacementDecisions : t.seat.editorPlacementChat}
+      </p>
+      {showPreview ? (
+        <PromptPreview name={seat.id} street={street} modelId={model} prompt={promptText}
+          chartPreflop={!natural}>
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-1" aria-label={t.seat.sampleValue}>
+              {PREVIEW_STREETS.map(s => <button key={s} type="button" aria-pressed={s === street} onClick={() => setStreet(s)} className={`px-3 min-h-11 rounded-full text-[13px] ${s === street ? "bg-white text-black" : "bg-white/5 text-white/60"}`}>{t.desk.phases[s]}</button>)}
+            </div>
+            <PromptEditor ref={editor} value={promptText} onChange={editPrompt} limit={PROMPT_LIMIT} label={promptLabel}
+              stateOf={stateOf} valueOf={valueOf} showValues selected={picked} onSelect={inspectField}
+              edited={edited} className="min-h-[180px]" />
+            <div className="mt-2 text-right text-[12px] text-white/35 tabular-nums">{promptText.length}/{PROMPT_LIMIT}</div>
+            {refs.unknown.length > 0 && <p className="mt-2 text-[13px] leading-snug text-[#ff8a8a]">
+              {t.seat.unknownVariables}{" "}{refs.unknown.map(name => <code key={name} className="font-mono mr-1.5">`{name}`</code>)}
+            </p>}
+          </div>
+        </PromptPreview>
+      ) : <>
+        <PromptEditor ref={editor} value={promptText} onChange={editPrompt} limit={PROMPT_LIMIT} label={promptLabel}
+          stateOf={stateOf} valueOf={valueOf} showValues={false} selected={picked} onSelect={inspectField}
+          edited={edited} className="min-h-[180px]" />
+        <div className="mt-2 text-right text-[12px] text-white/35 tabular-nums">{promptText.length}/{PROMPT_LIMIT}</div>
+        {refs.unknown.length > 0 && <p className="mt-2 text-[13px] leading-snug text-[#ff8a8a]">
+          {t.seat.unknownVariables}{" "}{refs.unknown.map(name => <code key={name} className="font-mono mr-1.5">`{name}`</code>)}
+        </p>}
+      </>}
     </section>
   );
 
-  const variables = <PromptVariables used={refs.used} onInsert={insertField} valueOf={valueOf} />;
-
-  const preview = (
-    <PromptPreview
-      name={seat.id}
-      street={street}
-      onStreet={setStreet}
-      modelId={model}
-      prompt={seat.prompt}
-      draft={promptText}
-      selected={picked}
-      onSelect={setPicked}
-      chartPreflop={!natural}
-    />
-  );
-
-  const subtitle = [currentModel?.label, natural ? "" : styleName].filter(Boolean).join(" · ");
-
-  // Portalled to the body: the lobby animates with a transform, which would pin a fixed sheet to it
-  if (wide)
-    return createPortal(
-      <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={seat.id}>
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-[fade-in_200ms_ease-out]" onClick={onClose} />
-
-        <div className="absolute inset-5 xl:inset-8 mx-auto max-w-[1480px] flex flex-col rounded-[28px] bg-[#1c1c1e] border border-white/[0.06] shadow-2xl shadow-black/60 overflow-hidden animate-[panel-in_360ms_cubic-bezier(0.19,1,0.22,1)]">
-          <header className="shrink-0 flex items-center gap-4 px-6 h-[76px] border-b border-white/[0.06]">
-            <Avatar name={seat.id} alt="" draggable={false} className="w-11 h-11 object-contain" />
-            <div className="min-w-0">
-              <div className="text-[19px] text-white leading-tight truncate">{seat.id}</div>
-              <div className="text-[13px] text-white/45 truncate">{subtitle}</div>
+  const information = picked ? (
+    <div className="space-y-4" aria-live="polite">
+      <p className="text-[13px] leading-snug text-white/50">
+        {PROMPT_FIELDS.find(f => f.path === picked.replace(/^state\./, ""))?.desc[lang] ?? t.seat.childField}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {PREVIEW_STREETS.map(s => {
+          const sample = valueAt(sampleSituation(seat.id, s).state as Record<string, unknown>, picked);
+          return <div key={s} className="min-w-0 rounded-xl bg-white/[0.05] px-3 py-2.5">
+            <div className="text-[11px] text-white/35">{t.desk.phases[s]}</div>
+            <div className={`mt-1 text-[13px] break-words ${sample === undefined ? "text-white/35" : "text-[#f5e35b]"}`}>
+              {sample === undefined ? t.seat.notThisStreet : formatValue(sample, 160)}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="ml-auto h-10 px-6 rounded-full bg-white text-black text-[15px] active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              {t.seat.done}
-            </button>
-          </header>
+          </div>;
+        })}
+      </div>
+    </div>
+  ) : <PromptVariables used={refs.used} onInsert={(path) => { insertField(path); setPanel(null); }} valueOf={valueOf} />;
 
-          <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1.1fr)_minmax(0,1fr)]">
-            {/* The player */}
-            <aside className="hidden 2xl:block min-h-0 overflow-y-auto no-scrollbar px-6 py-6 space-y-7 border-r border-white/[0.06]">
-              {modelSection}
-              {styleSection}
-            </aside>
-
-            {/* The prompt, and the fields it can point at */}
-            <main className="min-h-0 overflow-y-auto no-scrollbar px-6 py-6 space-y-5">
-              <div className="2xl:hidden space-y-5">
-                {modelSection}
-                {styleSection}
-              </div>
-              {promptSection}
-              {variables}
-            </main>
-
-            {/* What the model reads */}
-            <section className="min-h-0 overflow-y-auto no-scrollbar px-6 py-6 bg-black/20 border-l border-white/[0.06]">
-              <h3 className="text-[15px] text-white">{t.seat.previewTitle}</h3>
-              <p className="mt-1 mb-5 text-[13px] leading-snug text-white/45">{t.seat.previewNote}</p>
-              {preview}
-            </section>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
+  const panelTitle = panel === "settings" ? t.seat.settings : picked ? fieldLabel(picked, lang) : t.seat.addInformation;
 
   return createPortal(
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={seat.id}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fade-in_200ms_ease-out]" onClick={onClose} />
-
-      <div
-        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[480px] max-h-[88svh] flex flex-col rounded-t-[28px] bg-[#1c1c1e] animate-[sheet-up_320ms_cubic-bezier(0.19,1,0.22,1)]"
-        style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="shrink-0 flex justify-center pt-2.5 pb-1">
-          <span className="w-10 h-1 rounded-full bg-white/20" />
-        </div>
-
-        {/* Who */}
-        <div className="shrink-0 flex items-center gap-4 px-5 pt-3 pb-5">
-          <Avatar name={seat.id} alt="" className="w-16 h-16 object-contain" />
-          <div className="min-w-0">
-            <div className="text-[22px] text-white leading-tight truncate">{seat.id}</div>
-            <div className="text-[15px] text-white/45 truncate">
-              {subtitle}
-            </div>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div ref={sheet} className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[680px] lg:max-w-[1100px] h-[94dvh] flex flex-col rounded-t-[28px] bg-[#1c1c1e] overflow-hidden shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <header className="shrink-0 px-4 pt-4 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <Avatar name={seat.id} alt="" className="w-10 h-10 object-contain" />
+            <div className="text-[18px] text-white flex-1 truncate">{seat.id}</div>
+            <button type="button" onClick={onClose} className="min-h-11 px-5 rounded-full bg-white text-black text-[14px] cursor-pointer">{t.seat.done}</button>
           </div>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 space-y-7 pb-2">
-          {modelSection}
-          {styleSection}
-          {promptSection}
-          {variables}
-
-          {/* The same preview as on a desktop, folded away until asked for */}
-          <section>
-            <button
-              type="button"
-              aria-expanded={previewOpen}
-              onClick={() => setPreviewOpen((v) => !v)}
-              className="w-full flex items-center justify-between h-[52px] px-4 rounded-[20px] bg-black/35 border border-white/10 text-[15px] text-white cursor-pointer"
-            >
-              {t.seat.previewToggle}
-              <span className={`text-white/50 transition-transform ${previewOpen ? "rotate-180" : ""}`}>
-                <Chevron />
-              </span>
-            </button>
-            {previewOpen && <div className="pt-4">{preview}</div>}
-          </section>
-        </div>
-
-        <div className="shrink-0 px-5 pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full h-[52px] rounded-full bg-white text-black text-[16px] active:scale-[0.98] transition-transform cursor-pointer"
-          >
-            {t.seat.done}
+          <button type="button" onClick={() => openPanel("settings")} aria-expanded={panel === "settings"} className="mt-1 min-h-11 flex items-center gap-2 max-w-full text-[13px] text-white/60 cursor-pointer">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{background: currentModel?.color ?? "white"}} />
+            <span className="truncate">{currentModel?.label ?? model} · {styleName}</span><Chevron />
           </button>
+        </header>
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto px-4 py-4 lg:px-8 lg:py-6">{promptSection}</div>
+        {panel && (
+          <section aria-label={panelTitle} className="shrink-0 max-h-[48%] lg:max-h-none lg:w-[420px] min-h-0 flex flex-col lg:border-l border-t border-white/15 bg-[#252527]">
+            <div className="shrink-0 flex items-center gap-2 px-4 min-h-12">
+              {picked && <button type="button" onClick={() => setPicked(null)} className="min-h-11 px-2 text-white/70 cursor-pointer" aria-label={t.seat.addInformation}>←</button>}
+              <h3 className="flex-1 truncate text-[14px] text-white">{panelTitle}</h3>
+              <button type="button" onClick={closePanel} aria-label={t.seat.closeInformation} className="w-11 h-11 text-white/60 cursor-pointer text-xl">×</button>
+            </div>
+            <div className="min-h-0 overflow-y-auto px-4 pb-4">
+              {panel === "information" ? information : <div className="space-y-5">{modelSection}{styleSection}</div>}
+            </div>
+          </section>
+        )}
         </div>
+        <nav aria-label={promptLabel} className="shrink-0 grid grid-cols-2 gap-2 p-3 border-t border-white/[0.08] bg-[#1c1c1e]">
+          <button type="button" aria-expanded={panel === "information"} onClick={() => panel === "information" ? closePanel() : openPanel("information")} className={`min-h-11 rounded-full text-[14px] cursor-pointer ${panel === "information" ? "bg-[#f5e35b] text-black" : "bg-white/[0.08] text-white"}`}>+ {t.seat.addInformation}</button>
+          <button type="button" aria-pressed={showPreview} onClick={() => { setShowPreview(v => !v); setPanel(null); setPicked(null); }} className={`min-h-11 rounded-full text-[14px] cursor-pointer ${showPreview ? "bg-white text-black" : "bg-white/[0.04] text-white/65"}`}>{t.seat.previewShort}</button>
+        </nav>
       </div>
-    </div>,
-    document.body
+    </div>, document.body
   );
 };

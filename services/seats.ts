@@ -3,6 +3,7 @@
 // bankroll, so a table you have tuned is still there next visit.
 
 import { AI_MODELS, AI_NAMES } from "../constants";
+import { chatPromptTemplate, modelKindFor } from "./aiProviders";
 import { StylePoint } from "./style";
 
 export interface SeatSettings {
@@ -10,7 +11,9 @@ export interface SeatSettings {
   model: string; // preferred model; a venue that doesn't serve it substitutes one it does
   strategy: string; // "RAW", a PERSONAS key, or "CUSTOM" (then `style` is its point)
   style?: StylePoint;
-  prompt: string;
+  prompt: string; // legacy strategy instructions; retained for saved-browser compatibility
+  chatPrompt?: string; // complete editable system-prompt template
+  decisionsPrompt?: string; // JEV action instructions
 }
 
 export const NATURAL = "RAW";
@@ -44,6 +47,8 @@ export const loadSeats = (name: string | null): SeatSettings[] | null => {
         strategy: typeof s.strategy === "string" ? s.strategy : NATURAL,
         ...(s.style && typeof s.style.x === "number" && typeof s.style.y === "number" ? { style: { x: s.style.x, y: s.style.y } } : {}),
         prompt: typeof s.prompt === "string" ? s.prompt : "",
+        ...(typeof s.chatPrompt === "string" ? { chatPrompt: s.chatPrompt } : {}),
+        ...(typeof s.decisionsPrompt === "string" ? { decisionsPrompt: s.decisionsPrompt } : {}),
       }));
   } catch {
     return null;
@@ -58,3 +63,16 @@ export const saveSeats = (name: string | null, seats: SeatSettings[]) => {
     // Blocked storage: the table still works this visit, it just won't be remembered
   }
 };
+
+export const promptForModel = (seat: SeatSettings, modelId: string): string => {
+  if (modelKindFor(modelId) === "decisions") {
+    return seat.decisionsPrompt !== undefined ? seat.decisionsPrompt : seat.prompt;
+  }
+  if (seat.chatPrompt !== undefined) return seat.chatPrompt;
+  return seat.prompt.trim() ? chatPromptTemplate(seat.prompt) : "";
+};
+
+export const withPromptForModel = (seat: SeatSettings, modelId: string, prompt: string): SeatSettings =>
+  modelKindFor(modelId) === "decisions"
+    ? { ...seat, decisionsPrompt: prompt }
+    : { ...seat, chatPrompt: prompt };

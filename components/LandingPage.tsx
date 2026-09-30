@@ -7,7 +7,7 @@ import { LanguageToggle } from "./LanguageToggle";
 import { OpponentSheet } from "./OpponentSheet";
 import { SeatSnake } from "./SeatSnake";
 import { Avatar } from "./Avatar";
-import { NATURAL, SeatSettings, defaultSeat, defaultSeats, loadSeats, saveSeats } from "../services/seats";
+import { NATURAL, SeatSettings, defaultSeat, defaultSeats, loadSeats, promptForModel, saveSeats } from "../services/seats";
 import { CUSTOM, personaFor, styleKeyOf } from "../services/style";
 import { loadSeatStats } from "../services/seatStats";
 
@@ -250,7 +250,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       name: s.id,
       model: modelAt(s, i),
       strategy: s.strategy,
-      prompt: s.prompt,
+      prompt: promptForModel(s, modelAt(s, i)),
       persona: personaFor(s.strategy, s.style),
       styleKey: styleKeyOf(s.strategy, s.style),
     })),
@@ -457,7 +457,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             ]
               .filter(Boolean)
               .join(" · "),
-            marked: seat.prompt.trim() !== "",
+            marked: promptForModel(seat, modelAt(seat, i)).trim() !== "",
           }))}
           unfolded={unfolded}
           onUnfold={() => setUnfolded(true)}

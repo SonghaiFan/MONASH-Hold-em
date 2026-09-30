@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { useLanguage } from "../services/i18n";
-import { PROMPT_FIELDS, PromptField } from "../services/promptFields";
+import { PROMPT_FIELDS, PromptField, fieldLabel } from "../services/promptFields";
 import { formatValue } from "../services/promptPreview";
 
 // The prompt, written as text, with every `field` it points at drawn as a pill.
@@ -24,6 +24,7 @@ interface PromptEditorProps {
   selected: string | null; // the pill picked out in the preview
   onSelect: (name: string | null) => void;
   edited: boolean;
+  label?: string;
   className?: string;
 }
 
@@ -109,6 +110,8 @@ const pillNode = (name: string) => {
   const el = document.createElement("span");
   el.dataset.var = name;
   el.contentEditable = "false";
+  el.setAttribute("role", "button");
+  el.tabIndex = 0;
   el.className = "prompt-pill";
   const label = document.createElement("span");
   label.className = "prompt-pill-name";
@@ -160,14 +163,13 @@ interface Suggest {
 }
 
 export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
-  ({ value, onChange, limit, stateOf, valueOf, showValues, selected, onSelect, edited, className = "" }, ref) => {
+  ({ value, onChange, limit, stateOf, valueOf, showValues, selected, onSelect, edited, label, className = "" }, ref) => {
     const { t, lang } = useLanguage();
     const root = useRef<HTMLDivElement>(null);
     const wrap = useRef<HTMLDivElement>(null);
     const composing = useRef(false);
     const lastCaret = useRef<number | null>(null);
     const [suggest, setSuggest] = useState<Suggest | null>(null);
-    const [hover, setHover] = useState<{ name: string; x: number; y: number; below: boolean } | null>(null);
 
     // Draw the value whenever it changes from outside (restore, insert, another seat)
     useLayoutEffect(() => {
@@ -179,11 +181,14 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
     useLayoutEffect(() => {
       root.current?.querySelectorAll<HTMLElement>("[data-var]").forEach((el: HTMLElement) => {
         const name = el.dataset.var!;
+        el.querySelector(".prompt-pill-name")!.textContent = fieldLabel(name, lang);
+        el.setAttribute("aria-label", fieldLabel(name, lang));
+        el.setAttribute("aria-pressed", String(name === selected));
         el.dataset.state = stateOf(name);
         el.dataset.selected = name === selected ? "true" : "false";
         const val = el.querySelector(".prompt-pill-value") as HTMLElement;
         const v = valueOf(name);
-        val.textContent = showValues && v !== undefined ? formatValue(v, 28) : "";
+        val.textContent = showValues ? (v !== undefined ? formatValue(v, 60) : stateOf(name) === "unknown" ? t.seat.unknownVariable : t.seat.notThisStreet) : "";
       });
     });
 
@@ -252,6 +257,13 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
     const matches = suggest ? searchFields(suggest.query).slice(0, 8) : [];
 
     const onKeyDown = (e: React.KeyboardEvent) => {
+      const pill = (e.target as HTMLElement).closest<HTMLElement>("[data-var]");
+      if (pill && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        const name = pill.dataset.var!;
+        onSelect(name === selected ? null : name);
+        return;
+      }
       if (suggest && matches.length) {
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
           e.preventDefault();
@@ -309,21 +321,6 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
       },
     }));
 
-    // Hovering a pill shows what it is and what it holds here
-    const onPointerOver = (e: React.PointerEvent) => {
-      const pill = (e.target as HTMLElement).closest<HTMLElement>("[data-var]");
-      if (!pill || !wrap.current) return setHover(null);
-      const r = pill.getBoundingClientRect();
-      const box = wrap.current.getBoundingClientRect();
-      const below = r.top - box.top < 150;
-      setHover({
-        name: pill.dataset.var!,
-        x: Math.max(0, Math.min(r.left - box.left, box.width - 300)),
-        y: below ? r.bottom - box.top + 8 : r.top - box.top - 8,
-        below,
-      });
-    };
-
     const onClick = (e: React.MouseEvent) => {
       const pill = (e.target as HTMLElement).closest<HTMLElement>("[data-var]");
       if (pill) {
@@ -341,17 +338,13 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
       return () => document.removeEventListener("pointerdown", close);
     }, [suggest]);
 
-    const hoverField = hover ? PROMPT_FIELDS.find((f) => f.path === hover.name.replace(/^state\./, "")) : undefined;
-    const hoverState = hover ? stateOf(hover.name) : "known";
-    const hoverValue = hover ? valueOf(hover.name) : undefined;
-
     return (
       <div ref={wrap} className="relative">
         <div
           ref={root}
           role="textbox"
           aria-multiline="true"
-          aria-label={t.seat.prompt}
+          aria-label={label ?? t.seat.prompt}
           contentEditable
           suppressContentEditableWarning
           spellCheck={false}
@@ -369,8 +362,6 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
             composing.current = false;
             onInput();
           }}
-          onPointerOver={onPointerOver}
-          onPointerLeave={() => setHover(null)}
           onClick={onClick}
           onBlur={() => setTimeout(() => setSuggest(null), 120)}
           className={`prompt-editor w-full whitespace-pre-wrap break-words rounded-[20px] bg-black/35 border outline-none px-4 py-3 text-[15px] leading-[1.9] transition-colors ${
@@ -411,26 +402,6 @@ export const PromptEditor = forwardRef<PromptEditorHandle, PromptEditorProps>(
           </div>
         )}
 
-        {/* What a pill is, and what it is in this spot */}
-        {hover && !suggest && (
-          <div
-            className="pointer-events-none absolute z-20 w-[300px] max-w-full rounded-[16px] bg-[#2c2c2e] border border-white/10 shadow-2xl shadow-black/60 px-3.5 py-3 animate-[fade-in_120ms_ease-out]"
-            style={{ left: hover.x, top: hover.y, transform: hover.below ? undefined : "translateY(-100%)" }}
-          >
-            <code className="font-mono text-[13px] text-white">{hover.name}</code>
-            <p className="mt-1 text-[12px] leading-snug text-white/50">
-              {hoverField ? hoverField.desc[lang] : hoverState === "unknown" ? t.seat.unknownVariable : t.seat.childField}
-            </p>
-            <div className="mt-2.5 text-[11px] uppercase tracking-wide text-white/35">{t.seat.valueHere}</div>
-            <div
-              className={`mt-1 font-mono text-[12px] leading-snug break-words ${
-                hoverState === "known" ? "text-[#f5e35b]" : hoverState === "absent" ? "text-white/40" : "text-[#ff8a8a]"
-              }`}
-            >
-              {hoverState === "known" ? formatValue(hoverValue, 220) : hoverState === "absent" ? t.seat.notThisStreet : t.seat.unknownVariable}
-            </div>
-          </div>
-        )}
       </div>
     );
   }

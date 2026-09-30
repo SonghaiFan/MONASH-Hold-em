@@ -1,0 +1,8 @@
+[
+  {
+    "id": "callInBigBlinds",
+    "label": "Call in big blinds",
+    "description": "The cost to call measured in big blinds.",
+    "source": { "kind": "formula", "expression": "toCall / bigBlind" }
+  }
+]

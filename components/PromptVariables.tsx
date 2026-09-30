@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useLanguage } from "../services/i18n";
-import { FIELD_GROUPS, FieldGroup, PROMPT_FIELDS } from "../services/promptFields";
-import { formatValue } from "../services/promptPreview";
+import { PROMPT_FIELDS, fieldLabel } from "../services/promptFields";
 
 interface PromptVariablesProps {
   used: Set<string>; // names the prompt already refers to
@@ -14,42 +13,21 @@ interface PromptVariablesProps {
 // with, a group at a time. Tapping one writes it into the prompt, in backticks.
 export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert, valueOf, className = "" }) => {
   const { t, lang } = useLanguage();
-  const [group, setGroup] = useState<FieldGroup>("you");
+  const [query, setQuery] = useState("");
+  const fields = PROMPT_FIELDS.filter(f => `${f.path} ${f.desc[lang]} ${fieldLabel(f.path, lang)}`.toLowerCase().includes(query.toLowerCase()));
   // A key inside list entries also counts written on its own: `reads` for `tableInActionOrder[].reads`
   const isUsed = (path: string) =>
     used.has(path) || used.has(path.replace("[]", "")) || (path.includes("[]") && used.has(path.split(".").pop()!));
 
   return (
     <div className={`rounded-[20px] bg-black/35 border border-white/10 overflow-hidden ${className}`}>
-      <div className="px-4 pt-3.5">
-        <div className="text-[15px] text-white">{t.seat.variables}</div>
-        <p className="mt-1 text-[13px] leading-snug text-white/45">{t.seat.variablesNote}</p>
+      <div className="p-3">
+        <input type="search" value={query} onChange={e => setQuery(e.target.value)} aria-label={t.seat.searchInformation} placeholder={t.seat.searchInformation} className="w-full rounded-xl bg-white/5 px-3 py-2 text-[16px] text-white outline-none focus:ring-1 focus:ring-white/30" />
       </div>
-
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-4 pt-3 pb-2">
-        {FIELD_GROUPS.map((g) => {
-          const on = g === group;
-          const any = PROMPT_FIELDS.some((f) => f.group === g && isUsed(f.path));
-          return (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGroup(g)}
-              className={`relative shrink-0 h-8 px-3.5 rounded-full text-[13px] transition-colors cursor-pointer ${
-                on ? "bg-white text-black" : "bg-white/[0.07] text-white/80 hover:bg-white/[0.12]"
-              }`}
-            >
-              {t.seat.fieldGroups[g]}
-              {any && <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${on ? "bg-black/60" : "bg-[#f5e35b]"}`} />}
-            </button>
-          );
-        })}
-      </div>
-
-      <ul className="max-h-[280px] overflow-y-auto no-scrollbar pb-2">
-        {PROMPT_FIELDS.filter((f) => f.group === group).map((f) => {
+      {fields.length === 0 && <p className="px-4 pb-4 text-[13px] text-white/50">{t.seat.noInformation}</p>}
+      <ul className="pb-2">
+        {fields.map((f) => {
           const on = isUsed(f.path);
-          const live = valueOf ? valueOf(f.path) : f.example;
           return (
             <li key={f.path}>
               <button
@@ -59,7 +37,7 @@ export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert
                 className="group w-full text-left px-4 py-2.5 hover:bg-white/[0.04] active:bg-white/[0.07] transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <code className={`font-mono text-[13px] truncate ${on ? "text-[#f5e35b]" : "text-white"}`}>{f.path}</code>
+                  <code className={`text-[14px] truncate ${on ? "text-[#f5e35b]" : "text-white"}`}>{fieldLabel(f.path, lang)}</code>
                   {f.sometimes && (
                     <span className="shrink-0 h-[18px] px-1.5 rounded-full bg-white/[0.08] text-[11px] leading-[18px] text-white/50">
                       {t.seat.sometimes}
@@ -70,9 +48,6 @@ export const PromptVariables: React.FC<PromptVariablesProps> = ({ used, onInsert
                   </span>
                 </span>
                 <span className="block mt-0.5 text-[13px] leading-snug text-white/55">{f.desc[lang]}</span>
-                <span className={`block mt-0.5 font-mono text-[11px] truncate ${live === undefined ? "text-white/25 italic" : valueOf ? "text-[#f5e35b]/60" : "text-white/30"}`}>
-                  {live === undefined ? t.seat.notThisStreet : formatValue(live)}
-                </span>
               </button>
             </li>
           );
